@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script>
 firebase.initializeApp({
   apiKey:"AIzaSyDLPAktzLmpfNX9XUmw9i_B2P2I3XPwOLs",
@@ -20,6 +21,7 @@ firebase.initializeApp({
 });
 const db=firebase.database();
 const auth=firebase.auth();
+const storage=firebase.storage();
 </script>
 <style>
 :root{--bg:#f7f5f2;--surface:#fff;--surface2:#f0ede8;--border:#e2ddd7;--text:#1a1714;--muted:#7a746c;--accent:#e8440a;--al:#fff0eb;--green:#2d7a4f;--r:12px;--sh:0 2px 16px rgba(0,0,0,0.07);--shl:0 8px 40px rgba(0,0,0,0.12);}
@@ -213,10 +215,79 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 .als>p{color:var(--muted);margin-bottom:24px;}
 .lform{display:flex;flex-direction:column;gap:13px;}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
-.iu{border:2px dashed var(--border);border-radius:10px;padding:36px;text-align:center;cursor:pointer;transition:all .2s;}
+.iu{border:2px dashed var(--border);border-radius:10px;padding:36px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
 .iu:hover{border-color:var(--accent);background:var(--al);}
+.iu input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
 .iu-i{font-size:1.85rem;margin-bottom:6px;}
-.iu p{color:var(--muted);font-size:.85rem;margin:0;}
+.iu p{color:var(--muted);font-size:.85rem;margin:0;pointer-events:none;}
+.img-previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.img-thumb{width:72px;height:72px;border-radius:8px;object-fit:cover;border:1.5px solid var(--border);}
+.img-thumb-wrap{position:relative;}
+.img-rm{position:absolute;top:-5px;right:-5px;background:var(--accent);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.upload-prog{height:4px;background:var(--surface2);border-radius:2px;margin-top:8px;overflow:hidden;display:none;}
+.upload-prog-bar{height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:2px;}
+/* Managed store banner */
+.managed-banner{background:linear-gradient(135deg,#1a1714,#3a2f28);color:#fff;padding:14px 20px;border-radius:10px;margin-bottom:22px;display:flex;align-items:center;gap:12px;}
+.managed-banner-icon{font-size:1.5rem;}
+.managed-banner-text{flex:1;}
+.managed-banner-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;}
+.managed-banner-sub{font-size:.78rem;color:rgba(255,255,255,.6);margin-top:2px;}
+.managed-banner-badge{background:var(--accent);color:#fff;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:100px;text-transform:uppercase;letter-spacing:.05em;}
+/* Store switcher */
+.store-sw{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;margin-bottom:22px;font-size:.85rem;flex-wrap:wrap;}
+.store-sw-label{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;}
+.store-sw select{border:1.5px solid var(--border);border-radius:6px;padding:5px 10px;font-family:'DM Sans',sans-serif;font-size:.85rem;background:var(--surface);color:var(--text);outline:none;cursor:pointer;}
+.store-sw select:focus{border-color:var(--accent);}
+/* Agent invite status */
+.inv-badge{padding:3px 9px;border-radius:100px;font-size:.69rem;font-weight:700;text-transform:uppercase;}
+.inv-pending{background:#fff8e1;color:#f0a500;}
+.inv-accepted{background:#e8f5e9;color:#2d7a4f;}
+/* ADMIN WITHDRAW CARD */
+.aw-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:18px 20px;margin-bottom:12px;}
+.aw-card.pending{border-left:4px solid #f59e0b;}
+.aw-card.approved{border-left:4px solid #4ade80;}
+.aw-card.rejected{border-left:4px solid #f87171;}
+.aw-status{display:inline-block;padding:3px 10px;border-radius:100px;font-size:.68rem;font-weight:700;text-transform:uppercase;margin-bottom:10px;}
+.aw-status.pending{background:rgba(245,158,11,.2);color:#f59e0b;}
+.aw-status.approved{background:rgba(74,222,128,.15);color:#4ade80;}
+.aw-status.rejected{background:rgba(248,113,113,.15);color:#f87171;}
+.aw-row{display:flex;justify-content:space-between;align-items:center;font-size:.83rem;color:rgba(255,255,255,.7);margin-bottom:6px;}
+.aw-row strong{color:#fff;}
+.aw-actions{display:flex;gap:8px;margin-top:14px;}
+.aw-btn{padding:8px 18px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:.83rem;font-weight:600;cursor:pointer;transition:all .2s;border:none;}
+.aw-approve{background:#4ade80;color:#0a1a0a;}
+.aw-approve:hover{background:#22c55e;}
+.aw-reject{background:rgba(248,113,113,.2);color:#f87171;border:1px solid rgba(248,113,113,.3);}
+.aw-reject:hover{background:rgba(248,113,113,.35);}
+/* Withdraw history row */
+.wh-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border);font-size:.85rem;}
+.wh-row:last-child{border-bottom:none;}
+.wh-status{padding:2px 9px;border-radius:100px;font-size:.68rem;font-weight:700;text-transform:uppercase;}
+.wh-pending{background:#fff8e1;color:#f0a500;}
+.wh-approved{background:#e8f5e9;color:#2d7a4f;}
+.wh-rejected{background:#ffeaea;color:#c0392b;}
+.aw-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:18px 20px;margin-bottom:12px;}
+.aw-card.pending{border-left:4px solid #f59e0b;}
+.aw-card.approved{border-left:4px solid #4ade80;}
+.aw-card.rejected{border-left:4px solid #f87171;}
+.aw-status{display:inline-block;padding:3px 10px;border-radius:100px;font-size:.68rem;font-weight:700;text-transform:uppercase;margin-bottom:10px;}
+.aw-status.pending{background:rgba(245,158,11,.2);color:#f59e0b;}
+.aw-status.approved{background:rgba(74,222,128,.15);color:#4ade80;}
+.aw-status.rejected{background:rgba(248,113,113,.15);color:#f87171;}
+.aw-row{display:flex;justify-content:space-between;font-size:.83rem;color:rgba(255,255,255,.7);margin-bottom:6px;}
+.aw-row strong{color:#fff;}
+.aw-actions{display:flex;gap:8px;margin-top:14px;}
+.aw-btn{padding:8px 18px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:.83rem;font-weight:600;cursor:pointer;transition:all .2s;border:none;}
+.aw-approve{background:#4ade80;color:#0a1a0a;}
+.aw-approve:hover{background:#22c55e;}
+.aw-reject{background:rgba(248,113,113,.2);color:#f87171;border:1px solid rgba(248,113,113,.3);}
+.aw-reject:hover{background:rgba(248,113,113,.35);}
+.wh-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border);font-size:.85rem;}
+.wh-row:last-child{border-bottom:none;}
+.wh-status{padding:2px 9px;border-radius:100px;font-size:.68rem;font-weight:700;text-transform:uppercase;}
+.wh-p{background:#fff8e1;color:#f0a500;}
+.wh-a{background:#e8f5e9;color:#2d7a4f;}
+.wh-r{background:#ffeaea;color:#c0392b;}
 .toast{position:fixed;bottom:21px;left:50%;transform:translateX(-50%) translateY(78px);background:var(--text);color:#fff;padding:10px 19px;border-radius:100px;font-size:.85rem;font-weight:500;z-index:9999;transition:transform .3s;white-space:nowrap;pointer-events:none;}
 .toast.show{transform:translateX(-50%) translateY(0);}
 .view{display:none;}
@@ -273,19 +344,23 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 <div class="modal-overlay" id="agentModal">
   <div class="modal">
     <button class="mc" onclick="closeModal('agentModal')">✕</button>
-    <h2>Add Team Member</h2>
-    <p>Assign a user to help manage your store listings and orders.</p>
-    <div class="fg"><label>User Email</label><input type="email" id="agentEmail" placeholder="team@email.com"></div>
-    <div class="fg"><label>Role</label>
+    <h2>Invite Team Member</h2>
+    <p>Invite a registered Tradex user by email. They can switch between their store and yours from their dashboard.</p>
+    <div class="fg"><label>Their Tradex Email</label><input type="email" id="agentEmail" placeholder="friend@email.com"></div>
+    <div class="fg"><label>Role &amp; Permissions</label>
       <select id="agentRole">
-        <option value="manager">Store Manager — Full access</option>
-        <option value="listings">Listings Handler — Products only</option>
-        <option value="orders">Order Handler — Orders only</option>
-        <option value="support">Customer Support — Chat only</option>
+        <option value="manager">🧑‍💼 Store Manager — Full access</option>
+        <option value="listings">🏷 Listings Handler — Add &amp; edit products only</option>
+        <option value="orders">📦 Order Handler — View &amp; process orders only</option>
+        <option value="support">💬 Customer Support — Reply to enquiries only</option>
       </select>
     </div>
-    <div class="fg"><label>Note (optional)</label><textarea placeholder="e.g. Handle weekend orders"></textarea></div>
-    <button class="bp" onclick="addAgent()">Send Invitation</button>
+    <div class="fg"><label>Personal Note (optional)</label><textarea id="agentNote" placeholder="e.g. Please handle all weekend orders"></textarea></div>
+    <div style="background:var(--surface2);border-radius:9px;padding:12px;font-size:.81rem;color:var(--muted);margin-bottom:15px;">
+      ℹ️ The invited user must have a Tradex account. They will see your store in their <strong>Managed Stores</strong> section and can list products on your behalf.
+    </div>
+    <div class="aerr" id="agentErr"></div>
+    <button class="bp" onclick="sendAgentInvite()">Send Invitation</button>
   </div>
 </div>
 
@@ -346,6 +421,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
           <a href="#" onclick="showView('home')">🏠 Browse</a>
           <a href="#" onclick="showSellerDash()">📊 Seller Dashboard</a>
           <a href="#" onclick="showView('addListing')">➕ Add Listing</a>
+          <a href="#" id="adminNavLink" style="display:none;" onclick="showView('admin');loadAdminPanel()">🛡️ Admin Panel</a>
           <hr>
           <button onclick="logout()">Sign Out</button>
         </div>
@@ -415,10 +491,20 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
         <button class="dtab" onclick="sdtab('listings',this)">Listings</button>
         <button class="dtab" onclick="sdtab('orders',this)">Orders</button>
         <button class="dtab" onclick="sdtab('team',this)">Team</button>
+        <button class="dtab" onclick="sdtab('wallet',this)">💰 Wallet</button>
       </div>
     </div>
 
     <div id="sd-overview">
+      <!-- Live Balance Banner -->
+      <div style="background:linear-gradient(135deg,#1a1714,#3a2010);border-radius:14px;padding:20px 22px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+        <div>
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.45);margin-bottom:5px;">Available Balance</div>
+          <div style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:#fff;" id="overviewBal">$0.00</div>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.4);margin-top:3px;" id="overviewPending">Pending withdrawal: $0.00</div>
+        </div>
+        <button onclick="sdtab('wallet',null)" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-size:.86rem;font-weight:700;cursor:pointer;white-space:nowrap;">💸 Withdraw Funds</button>
+      </div>
       <div class="sr">
         <div class="scard"><div class="scn">$2,841</div><div class="scl">Revenue</div><div class="scd">↑ 14% this month</div></div>
         <div class="scard"><div class="scn">34</div><div class="scl">Active Listings</div><div class="scd">↑ 3 this week</div></div>
@@ -473,54 +559,193 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 
     <div id="sd-team" style="display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:17px;flex-wrap:wrap;gap:10px;">
-        <div><div style="font-family:'Syne',sans-serif;font-size:1.03rem;font-weight:700;">Team Members</div><div style="font-size:.79rem;color:var(--muted);margin-top:2px;">Assign users to manage your store on your behalf.</div></div>
-        <button class="bp" style="width:auto;padding:8px 17px;font-size:.84rem;" onclick="openModal('agentModal')">+ Add Member</button>
+        <div><div style="font-family:'Syne',sans-serif;font-size:1.03rem;font-weight:700;">Team Members</div><div style="font-size:.79rem;color:var(--muted);margin-top:2px;">Invite users to manage your store on your behalf.</div></div>
+        <button class="bp" style="width:auto;padding:8px 17px;font-size:.84rem;" onclick="openModal('agentModal')">+ Invite Member</button>
       </div>
+
+      <!-- Managed Stores (stores THIS user is an agent for) -->
+      <div class="pb" id="managedStoresBox" style="margin-bottom:17px;display:none;">
+        <div class="pbt">🏪 Stores You Manage</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:12px;">You have been invited to manage these stores. Click to switch and list products on their behalf.</div>
+        <div class="al" id="managedStoresList"></div>
+      </div>
+
+      <!-- This seller's own team -->
       <div class="pb">
-        <div class="pbt">Active Team (<span id="tmcnt">3</span>)</div>
+        <div class="pbt">Your Team (<span id="tmcnt">3</span>)</div>
         <div class="al" id="teamList"></div>
         <button class="add-abtn" onclick="openModal('agentModal')">+ Invite a team member</button>
       </div>
+
+      <!-- Permissions guide -->
       <div class="pb" style="margin-top:17px;">
         <div class="pbt">Permissions Guide</div>
-        <div style="font-size:.82rem;color:var(--muted);line-height:1.9;">
-          <div>📋 <strong>Store Manager</strong> — Full store access</div>
-          <div>🏷 <strong>Listings Handler</strong> — Add/edit/remove products</div>
-          <div>📦 <strong>Order Handler</strong> — View and manage orders</div>
-          <div>💬 <strong>Customer Support</strong> — Respond to buyer messages</div>
+        <div style="font-size:.82rem;color:var(--muted);line-height:2;">
+          <div>🧑‍💼 <strong>Store Manager</strong> — Full access: listings, orders, team management</div>
+          <div>🏷 <strong>Listings Handler</strong> — Can add, edit and remove product listings</div>
+          <div>📦 <strong>Order Handler</strong> — Can view and process orders only</div>
+          <div>💬 <strong>Customer Support</strong> — Can reply to buyer enquiries only</div>
         </div>
+      </div>
+    </div>
+
+    <!-- WALLET TAB -->
+    <div id="sd-wallet" style="display:none;">
+      <!-- Balance Card -->
+      <div style="background:linear-gradient(135deg,#1a1714 0%,#3a2010 100%);border-radius:18px;padding:28px 24px;margin-bottom:22px;color:#fff;position:relative;overflow:hidden;">
+        <div style="position:absolute;right:-30px;top:-30px;width:160px;height:160px;border-radius:50%;background:rgba(232,68,10,.18);"></div>
+        <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.5);margin-bottom:8px;">Available Balance</div>
+        <div style="font-family:'Syne',sans-serif;font-size:3rem;font-weight:800;letter-spacing:-.03em;" id="walletBal">$0.00</div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.45);margin-top:6px;" id="walletPending">Pending: $0.00 · Total Earned: $0.00</div>
+        <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;">
+          <button onclick="openWithdrawModal()" style="padding:10px 22px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;transition:opacity .2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">💸 Withdraw</button>
+          <button onclick="showToast('📊 Statement coming soon!')" style="padding:10px 22px;background:rgba(255,255,255,.1);color:#fff;border:1.5px solid rgba(255,255,255,.2);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.88rem;cursor:pointer;">📄 Statement</button>
+        </div>
+      </div>
+
+      <!-- Withdrawal History -->
+      <div class="pb">
+        <div class="pbt">Withdrawal History</div>
+        <div id="withdrawHistory"><div style="color:var(--muted);font-size:.85rem;padding:16px 0;text-align:center;">No withdrawals yet.</div></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ADD LISTING VIEW -->
+<!-- WITHDRAW MODAL -->
+<div class="modal-overlay" id="withdrawModal">
+  <div class="modal" style="max-width:460px;">
+    <button class="mc" onclick="closeModal('withdrawModal')">✕</button>
+    <h2>💸 Withdraw Funds</h2>
+    <p>Withdraw to your Atlantas Union Bank account. Admin will authorize and process within 24–48 hrs.</p>
+
+    <div style="background:linear-gradient(135deg,#0a2540,#1a56dd);border-radius:12px;padding:16px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
+      <img src="https://i.imgur.com/iN8T10D.jpeg" style="width:40px;height:40px;border-radius:8px;object-fit:cover;" onerror="this.style.display='none'">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;color:#fff;font-size:.95rem;">Atlantas Union Bank</div>
+        <div style="font-size:.78rem;color:rgba(255,255,255,.6);">Secure · Reliable · Global Banking</div>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Account Number</label>
+      <input type="text" id="wAccNum" placeholder="Enter your Atlantas Bank account number" oninput="checkAccNum()">
+    </div>
+    <div class="fg">
+      <label>Account Name</label>
+      <input type="text" id="wAccName" placeholder="Name on your bank account">
+    </div>
+    <div class="fg">
+      <label>Amount to Withdraw ($)</label>
+      <input type="number" id="wAmount" placeholder="0.00" min="1" step="0.01" oninput="checkWithdrawAmount()">
+      <div style="font-size:.78rem;color:var(--muted);margin-top:5px;">Available: <strong id="wAvailLabel">$0.00</strong></div>
+    </div>
+    <div class="aerr" id="wErr"></div>
+    <button class="bp" id="wSubmitBtn" onclick="submitWithdraw()">Submit Withdrawal Request</button>
+
+    <!-- No Account Button -->
+    <button onclick="noAccountClick()" style="width:100%;margin-top:10px;padding:11px;background:transparent;border:1.5px dashed var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.86rem;color:var(--muted);cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+      👈 Don't have an Atlantas Bank account?
+    </button>
+  </div>
+</div>
+
+<!-- ADMIN PANEL VIEW -->
+<div class="view" id="view-admin">
+  <div style="background:linear-gradient(180deg,#0a2540 0%,#06111e 100%);min-height:100vh;padding:0 0 80px;">
+    <!-- Admin Nav -->
+    <div style="background:rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.1);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:#fff;">🛡️ Tradex Admin</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span style="font-size:.82rem;color:rgba(255,255,255,.5);" id="adminEmail">admin@gmail.com</span>
+        <button onclick="adminLogout()" style="padding:7px 14px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:7px;cursor:pointer;font-size:.82rem;font-family:'DM Sans',sans-serif;">Sign Out</button>
+      </div>
+    </div>
+
+    <div style="padding:28px 32px;">
+      <!-- Admin Stats -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:28px;">
+        <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:18px;">
+          <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#fff;" id="adminPendingCount">0</div>
+          <div style="font-size:.76rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;">Pending Withdrawals</div>
+        </div>
+        <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:18px;">
+          <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#4ade80;" id="adminApprovedCount">0</div>
+          <div style="font-size:.76rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;">Approved</div>
+        </div>
+        <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:18px;">
+          <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#f87171;" id="adminRejectedCount">0</div>
+          <div style="font-size:.76rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;">Rejected</div>
+        </div>
+        <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:18px;">
+          <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#60a5fa;" id="adminTotalPaid">$0</div>
+          <div style="font-size:.76rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;">Total Paid Out</div>
+        </div>
+      </div>
+
+      <!-- Withdrawal Requests -->
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:22px;">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;">
+          Withdrawal Requests
+          <div style="display:flex;gap:8px;">
+            <button onclick="filterAdmin('all')" id="af-all" style="padding:5px 13px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:.78rem;cursor:pointer;">All</button>
+            <button onclick="filterAdmin('pending')" id="af-pending" style="padding:5px 13px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6);font-size:.78rem;cursor:pointer;">Pending</button>
+            <button onclick="filterAdmin('approved')" id="af-approved" style="padding:5px 13px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6);font-size:.78rem;cursor:pointer;">Approved</button>
+          </div>
+        </div>
+        <div id="adminWithdrawList"><div style="color:rgba(255,255,255,.4);text-align:center;padding:40px;font-size:.88rem;">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="view" id="view-addListing">
   <div class="als">
     <h2>Add New Listing</h2>
-    <p>Fill in the details below to list your item for sale.</p>
-    <div class="lform">
-      <div class="iu" onclick="showToast('📸 Image upload coming soon!')">
-        <div class="iu-i">📷</div>
-        <p>Click to upload product photos</p>
-        <p style="margin-top:3px;font-size:.74rem;">JPG, PNG — up to 10MB</p>
+    <p id="listingForLabel">Fill in the details below to list your item for sale.</p>
+
+    <!-- Managed store notice -->
+    <div id="listingAsManagedBanner" style="display:none;" class="managed-banner">
+      <div class="managed-banner-icon">🏪</div>
+      <div class="managed-banner-text">
+        <div class="managed-banner-title" id="listingAsStoreName">Listing for store</div>
+        <div class="managed-banner-sub">You are adding this listing as an assigned team member.</div>
       </div>
-      <div class="fg"><label>Title</label><input type="text" placeholder="e.g. iPhone 15 Pro — 256GB, Black"></div>
+      <div class="managed-banner-badge" id="listingAsRoleBadge">Agent</div>
+    </div>
+
+    <div class="lform">
+      <!-- IMAGE UPLOAD -->
+      <div>
+        <div class="iu" id="imgUploadBox">
+          <input type="file" id="imgFileInput" accept="image/*" multiple onchange="handleImageSelect(event)">
+          <div class="iu-i">📷</div>
+          <p><strong>Click or drag</strong> to upload product photos</p>
+          <p style="margin-top:4px;font-size:.74rem;">JPG, PNG, WEBP — up to 5MB each · Max 5 images</p>
+        </div>
+        <div class="upload-prog" id="uploadProg"><div class="upload-prog-bar" id="uploadProgBar"></div></div>
+        <div class="img-previews" id="imgPreviews"></div>
+      </div>
+
+      <div class="fg"><label>Title</label><input type="text" id="lTitle" placeholder="e.g. iPhone 15 Pro — 256GB, Black"></div>
       <div class="fr">
         <div class="fg"><label>Category</label>
-          <select><option>Electronics</option><option>Fashion</option><option>Home & Garden</option><option>Sports</option><option>Cars & Vehicles</option><option>Books</option><option>Toys & Games</option><option>Art</option><option>Other</option></select>
+          <select id="lCat">
+            <option>Electronics</option><option>Fashion</option><option>Home & Garden</option>
+            <option>Sports</option><option>Cars & Vehicles</option><option>Books</option>
+            <option>Toys & Games</option><option>Art</option><option>Other</option>
+          </select>
         </div>
         <div class="fg"><label>Condition</label>
-          <select><option>New</option><option>Like New</option><option>Good</option><option>Fair</option></select>
+          <select id="lCond"><option>New</option><option>Like New</option><option>Good</option><option>Fair</option></select>
         </div>
       </div>
       <div class="fr">
-        <div class="fg"><label>Price ($)</label><input type="number" placeholder="0.00" step="0.01"></div>
-        <div class="fg"><label>Quantity</label><input type="number" placeholder="1" min="1"></div>
+        <div class="fg"><label>Price ($)</label><input type="number" id="lPrice" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="fg"><label>Quantity</label><input type="number" id="lQty" placeholder="1" min="1" value="1"></div>
       </div>
-      <div class="fg"><label>Description</label><textarea placeholder="Describe your item — brand, size, features, any defects..."></textarea></div>
-      <div class="fg"><label>Location</label><input type="text" placeholder="City, Country"></div>
-      <button class="bp" onclick="submitListing()">Publish Listing →</button>
+      <div class="fg"><label>Description</label><textarea id="lDesc" placeholder="Describe your item — brand, size, features, any defects..."></textarea></div>
+      <div class="fg"><label>Location</label><input type="text" id="lLoc" placeholder="City, Country"></div>
+      <button class="bp" id="publishBtn" onclick="submitListing()">Publish Listing →</button>
     </div>
   </div>
 </div>
@@ -629,13 +854,27 @@ document.addEventListener('DOMContentLoaded',()=>{
         const d=snap.val()||{};
         user={uid:fbUser.uid,name:d.name||fbUser.email.split('@')[0],email:fbUser.email,role:d.role||'buyer'};
         updateUserUI();
+        loadManagedStores();
+        checkAdminAccess();
       });
     }
   });
 });
 
 function showView(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const el=document.getElementById('view-'+v);if(el)el.classList.add('active');window.scrollTo(0,0);}
-function showSellerDash(){if(!user){openModal('authModal');showToast('🔐 Sign in first');return;}showView('seller');sdtab('overview',document.querySelector('.dtab'));}
+function showSellerDash(){
+  if(!user){openModal('authModal');showToast('🔐 Sign in first');return;}
+  showView('seller');
+  sdtab('overview',document.querySelector('.dtab'));
+  // Load balance for overview banner
+  db.ref('tradex_wallets/'+user.uid).once('value').then(snap=>{
+    const w=snap.val()||{balance:0,pending:0};
+    const ob=document.getElementById('overviewBal');
+    const op=document.getElementById('overviewPending');
+    if(ob)ob.textContent='$'+(w.balance||0).toFixed(2);
+    if(op)op.textContent='Pending withdrawal: $'+(w.pending||0).toFixed(2);
+  });
+}
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
 function renderProducts(list){
@@ -723,6 +962,8 @@ function doLogin(){
     return usersRef.child(c.user.uid).once('value').then(s=>{
       const d=s.val()||{};user={uid:c.user.uid,name:d.name||em.split('@')[0],email:em,role:d.role||'buyer'};
       updateUserUI();closeModal('authModal');showToast(`👋 Welcome back, ${user.name}!`);
+      loadManagedStores();
+      checkAdminAccess();
     });
   }).catch(e=>{err.textContent=e.message;});
 }
@@ -733,6 +974,8 @@ function doRegister(){
   auth.createUserWithEmailAndPassword(em,pw).then(c=>{
     return usersRef.child(c.user.uid).set({name:nm,email:em,role,createdAt:new Date().toISOString()}).then(()=>{
       user={uid:c.user.uid,name:nm,email:em,role};updateUserUI();closeModal('authModal');showToast(`🎉 Welcome, ${nm}!`);
+      loadManagedStores();
+      checkAdminAccess();
     });
   }).catch(e=>{err.textContent=e.message;});
 }
@@ -786,41 +1029,450 @@ function sendEnq(){
   },1300);
 }
 
-// ── AGENTS ────────────────────────────────────────────────────────────────────
-function renderAgents(){
-  const h=agents.map(a=>`<div class="ar"><div class="aav">${a.ini}</div><div class="ai"><div class="an">${a.name}</div><div class="arl">${a.role}</div></div><div class="ast"><div class="dot ${a.online?'don':'doff'}"></div>${a.online?'Online':'Offline'}</div><div class="abtns"><button class="abtn" onclick="showToast('✉️ Message sent to ${a.name}')">Msg</button><button class="abtn abtn-d" onclick="rmAgent(${a.id})">Remove</button></div></div>`).join('');
-  const t=document.getElementById('teamList'),o=document.getElementById('ovAgents');
-  if(t)t.innerHTML=h;
-  if(o)o.innerHTML=agents.slice(0,3).map(a=>`<div class="ar"><div class="aav">${a.ini}</div><div class="ai"><div class="an">${a.name}</div><div class="arl">${a.role}</div></div><div class="ast"><div class="dot ${a.online?'don':'doff'}"></div>${a.online?'Online':'Offline'}</div></div>`).join('');
-  const c=agents.length;
-  const e1=document.getElementById('tmcnt');if(e1)e1.textContent=c;
-  const e2=document.getElementById('tcnt');if(e2)e2.textContent=c;
-}
-function addAgent(){
-  const em=document.getElementById('agentEmail').value,rl=document.getElementById('agentRole');
-  if(!em){showToast('⚠️ Enter an email');return;}
-  const rlMap={manager:'Store Manager',listings:'Listings Handler',orders:'Order Handler',support:'Customer Support'};
-  const nm=em.split('@')[0].replace(/[._]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-  const ini=nm.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  agents.push({id:Date.now(),name:nm,email:em,role:rlMap[rl.value],online:false,ini});
-  if(user)db.ref('tradex_teams/'+user.uid).push({name:nm,email:em,role:rl.value,addedAt:new Date().toISOString()});
-  renderAgents();closeModal('agentModal');showToast(`✅ Invitation sent to ${em}!`);
-  document.getElementById('agentEmail').value='';
-}
-function rmAgent(id){agents=agents.filter(a=>a.id!==id);renderAgents();showToast('🗑️ Team member removed');}
+// ── IMAGE UPLOAD ──────────────────────────────────────────────────────────────
+let selectedImages = []; // {file, previewUrl}
+let uploadedImageUrls = []; // final Firebase URLs
+let listingForStore = null; // {uid, name, role} if agent listing for another store
 
-// ── LISTING ───────────────────────────────────────────────────────────────────
-function submitListing(){
-  if(!user){openModal('authModal');showToast('🔐 Sign in to list items');return;}
-  showToast('🎉 Listing published!');setTimeout(()=>showView('home'),900);
+function handleImageSelect(e) {
+  const files = Array.from(e.target.files);
+  if (selectedImages.length + files.length > 5) { showToast('⚠️ Max 5 images allowed'); return; }
+  files.forEach(f => {
+    if (f.size > 5 * 1024 * 1024) { showToast(`⚠️ ${f.name} is over 5MB`); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      selectedImages.push({ file: f, previewUrl: ev.target.result });
+      renderPreviews();
+    };
+    reader.readAsDataURL(f);
+  });
+  e.target.value = '';
+}
+
+function renderPreviews() {
+  const wrap = document.getElementById('imgPreviews');
+  wrap.innerHTML = selectedImages.map((img, i) => `
+    <div class="img-thumb-wrap">
+      <img class="img-thumb" src="${img.previewUrl}" alt="preview">
+      <button class="img-rm" onclick="removeImg(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeImg(i) {
+  selectedImages.splice(i, 1);
+  renderPreviews();
+}
+
+async function uploadImagesToFirebase() {
+  uploadedImageUrls = [];
+  if (!selectedImages.length) return [];
+  const prog = document.getElementById('uploadProg');
+  const bar = document.getElementById('uploadProgBar');
+  prog.style.display = 'block'; bar.style.width = '0%';
+  for (let i = 0; i < selectedImages.length; i++) {
+    const img = selectedImages[i];
+    const ref = storage.ref(`tradex_listings/${Date.now()}_${img.file.name}`);
+    const snap = await ref.put(img.file);
+    const url = await snap.ref.getDownloadURL();
+    uploadedImageUrls.push(url);
+    bar.style.width = ((i + 1) / selectedImages.length * 100) + '%';
+  }
+  setTimeout(() => { prog.style.display = 'none'; bar.style.width = '0%'; }, 600);
+  return uploadedImageUrls;
+}
+
+async function submitListing() {
+  if (!user) { openModal('authModal'); showToast('🔐 Sign in to list items'); return; }
+  const title = document.getElementById('lTitle').value.trim();
+  const price = parseFloat(document.getElementById('lPrice').value);
+  if (!title) { showToast('⚠️ Please add a title'); return; }
+  if (!price || price <= 0) { showToast('⚠️ Please add a valid price'); return; }
+  const btn = document.getElementById('publishBtn');
+  btn.textContent = selectedImages.length ? 'Uploading images...' : 'Publishing...';
+  btn.disabled = true;
+  try {
+    const imgUrls = await uploadImagesToFirebase();
+    const ownerUid = listingForStore ? listingForStore.uid : user.uid;
+    const ownerName = listingForStore ? listingForStore.name : user.name;
+    const listing = {
+      title,
+      price,
+      category: document.getElementById('lCat').value,
+      condition: document.getElementById('lCond').value,
+      qty: parseInt(document.getElementById('lQty').value) || 1,
+      description: document.getElementById('lDesc').value.trim(),
+      location: document.getElementById('lLoc').value.trim(),
+      images: imgUrls,
+      mainImage: imgUrls[0] || '',
+      sellerUid: ownerUid,
+      sellerName: ownerName,
+      listedByUid: user.uid,
+      listedByName: user.name,
+      isAgentListing: !!listingForStore,
+      createdAt: new Date().toISOString(),
+      status: 'active'
+    };
+    await db.ref('tradex_listings').push(listing);
+    showToast('🎉 Listing published successfully!');
+    // Reset form
+    selectedImages = []; uploadedImageUrls = [];
+    renderPreviews();
+    ['lTitle','lPrice','lDesc','lLoc'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('lQty').value = '1';
+    btn.textContent = 'Publish Listing →'; btn.disabled = false;
+    setTimeout(() => showView('home'), 900);
+  } catch (err) {
+    showToast('❌ Error: ' + err.message);
+    btn.textContent = 'Publish Listing →'; btn.disabled = false;
+  }
+}
+
+// ── AGENTS & MANAGED STORES ───────────────────────────────────────────────────
+function renderAgents() {
+  const h = agents.map(a => `
+    <div class="ar" id="agent-${a.id}">
+      <div class="aav">${a.ini}</div>
+      <div class="ai">
+        <div class="an">${a.name}</div>
+        <div class="arl">${a.role}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="inv-badge ${a.accepted ? 'inv-accepted' : 'inv-pending'}">${a.accepted ? 'Active' : 'Invited'}</span>
+        <div class="ast"><div class="dot ${a.online ? 'don' : 'doff'}"></div>${a.online ? 'Online' : 'Offline'}</div>
+      </div>
+      <div class="abtns">
+        <button class="abtn" onclick="showToast('✉️ Message sent to ${a.name}')">Msg</button>
+        <button class="abtn abtn-d" onclick="rmAgent(${a.id})">Remove</button>
+      </div>
+    </div>`).join('');
+
+  const t = document.getElementById('teamList');
+  const o = document.getElementById('ovAgents');
+  if (t) t.innerHTML = h || '<div style="color:var(--muted);font-size:.85rem;padding:12px 0;">No team members yet. Invite someone!</div>';
+  if (o) o.innerHTML = agents.slice(0, 3).map(a => `
+    <div class="ar">
+      <div class="aav">${a.ini}</div>
+      <div class="ai"><div class="an">${a.name}</div><div class="arl">${a.role}</div></div>
+      <span class="inv-badge ${a.accepted ? 'inv-accepted' : 'inv-pending'}">${a.accepted ? 'Active' : 'Invited'}</span>
+    </div>`).join('');
+
+  const c = agents.length;
+  const e1 = document.getElementById('tmcnt'); if (e1) e1.textContent = c;
+  const e2 = document.getElementById('tcnt');  if (e2) e2.textContent = c;
+}
+
+function rmAgent(id) {
+  const a = agents.find(x => x.id === id);
+  agents = agents.filter(x => x.id !== id);
+  if (user && a) db.ref(`tradex_invites/${user.uid}/${id}`).remove();
+  renderAgents();
+  showToast('🗑️ Team member removed');
+}
+
+async function sendAgentInvite() {
+  if (!user) { openModal('authModal'); return; }
+  const em = document.getElementById('agentEmail').value.trim();
+  const role = document.getElementById('agentRole').value;
+  const note = document.getElementById('agentNote') ? document.getElementById('agentNote').value.trim() : '';
+  const err = document.getElementById('agentErr');
+  if (!em) { err.textContent = 'Please enter an email address.'; return; }
+  if (em === user.email) { err.textContent = 'You cannot invite yourself.'; return; }
+  err.textContent = '';
+
+  const roleLabels = { manager:'Store Manager', listings:'Listings Handler', orders:'Order Handler', support:'Customer Support' };
+  const nm = em.split('@')[0].replace(/[._]/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+  const ini = nm.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const inviteId = 'inv_' + Date.now();
+
+  // Save invite to Firebase under seller's uid
+  const invite = {
+    inviteId, agentEmail: em, agentName: nm, role, roleLabel: roleLabels[role],
+    note, sellerUid: user.uid, sellerName: user.name, sellerEmail: user.email,
+    status: 'pending', sentAt: new Date().toISOString()
+  };
+  await db.ref(`tradex_invites/${user.uid}/${inviteId}`).set(invite);
+
+  // Also store under agent's email lookup (so they can find it on login)
+  const emailKey = em.replace(/\./g, '_').replace(/@/g, '__at__');
+  await db.ref(`tradex_agent_lookup/${emailKey}/${inviteId}`).set(invite);
+
+  agents.push({ id: inviteId, name: nm, email: em, role: roleLabels[role], online: false, ini, accepted: false });
+  renderAgents();
+  closeModal('agentModal');
+  showToast(`✅ Invitation sent to ${em}!`);
+  document.getElementById('agentEmail').value = '';
+  if (document.getElementById('agentNote')) document.getElementById('agentNote').value = '';
+}
+
+// Called when user logs in — load their managed stores (stores they are agents for)
+function loadManagedStores() {
+  if (!user) return;
+  const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
+  db.ref(`tradex_agent_lookup/${emailKey}`).once('value').then(snap => {
+    if (!snap.exists()) return;
+    const stores = [];
+    snap.forEach(c => {
+      const inv = c.val();
+      if (inv && inv.status !== 'rejected') stores.push(inv);
+    });
+    if (!stores.length) return;
+    renderManagedStores(stores);
+    // Accept all pending invites automatically on login
+    stores.forEach(s => {
+      if (s.status === 'pending') {
+        db.ref(`tradex_invites/${s.sellerUid}/${s.inviteId}`).update({ status: 'accepted', acceptedAt: new Date().toISOString() });
+        db.ref(`tradex_agent_lookup/${emailKey}/${s.inviteId}`).update({ status: 'accepted' });
+      }
+    });
+  });
+}
+
+function renderManagedStores(stores) {
+  const box = document.getElementById('managedStoresBox');
+  const list = document.getElementById('managedStoresList');
+  if (!box || !list) return;
+  box.style.display = 'block';
+  list.innerHTML = stores.map(s => `
+    <div class="ar">
+      <div class="aav" style="background:#1a1714;">${s.sellerName[0].toUpperCase()}</div>
+      <div class="ai">
+        <div class="an">${s.sellerName}'s Store</div>
+        <div class="arl">Your role: ${s.roleLabel} · ${s.note ? s.note : 'No notes'}</div>
+      </div>
+      <span class="inv-badge inv-accepted">${s.roleLabel}</span>
+      <button class="abtn" onclick="switchToManagedStore('${s.sellerUid}','${s.sellerName}','${s.roleLabel}','${s.inviteId}')">Switch →</button>
+    </div>`).join('');
+}
+
+function switchToManagedStore(uid, name, role, inviteId) {
+  listingForStore = { uid, name, role };
+  // Show banner in Add Listing
+  const banner = document.getElementById('listingAsManagedBanner');
+  const storeName = document.getElementById('listingAsStoreName');
+  const roleBadge = document.getElementById('listingAsRoleBadge');
+  if (banner) { banner.style.display = 'flex'; }
+  if (storeName) storeName.textContent = `Listing for: ${name}'s Store`;
+  if (roleBadge) roleBadge.textContent = role;
+  showView('addListing');
+  showToast(`🏪 Now listing products for ${name}'s store`);
+}
+
+function exitManagedStore() {
+  listingForStore = null;
+  const banner = document.getElementById('listingAsManagedBanner');
+  if (banner) banner.style.display = 'none';
 }
 
 // ── DASH TABS ─────────────────────────────────────────────────────────────────
 function sdtab(tab,btn){
-  ['overview','listings','orders','team'].forEach(t=>{const el=document.getElementById('sd-'+t);if(el)el.style.display=t===tab?'block':'none';});
+  ['overview','listings','orders','team','wallet'].forEach(t=>{
+    const el=document.getElementById('sd-'+t);
+    if(el)el.style.display=t===tab?'block':'none';
+  });
   if(btn){document.querySelectorAll('.dtab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
-  else document.querySelectorAll('.dtab').forEach((b,i)=>{const ts=['overview','listings','orders','team'];b.classList.toggle('active',ts[i]===tab);});
+  else document.querySelectorAll('.dtab').forEach((b,i)=>{
+    const ts=['overview','listings','orders','team','wallet'];
+    b.classList.toggle('active',ts[i]===tab);
+  });
   if(tab==='team')renderAgents();
+  if(tab==='wallet')loadWallet();
+}
+
+// ── WALLET ────────────────────────────────────────────────────────────────────
+function loadWallet(){
+  if(!user)return;
+  db.ref('tradex_wallets/'+user.uid).on('value',snap=>{
+    const w=snap.val()||{balance:0,totalEarned:0,pending:0};
+    const bal=document.getElementById('walletBal');
+    const pend=document.getElementById('walletPending');
+    const wAvail=document.getElementById('wAvailLabel');
+    if(bal)bal.textContent='$'+(w.balance||0).toFixed(2);
+    if(pend)pend.textContent=`Pending: $${(w.pending||0).toFixed(2)} · Total Earned: $${(w.totalEarned||0).toFixed(2)}`;
+    if(wAvail)wAvail.textContent='$'+(w.balance||0).toFixed(2);
+  });
+  // Load withdraw history
+  db.ref('tradex_withdrawals').orderByChild('sellerUid').equalTo(user.uid).on('value',snap=>{
+    const el=document.getElementById('withdrawHistory');if(!el)return;
+    if(!snap.exists()){el.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:16px 0;text-align:center;">No withdrawals yet.</div>';return;}
+    const rows=[];
+    snap.forEach(c=>{rows.push({key:c.key,...c.val()});});
+    rows.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+    el.innerHTML=rows.map(r=>`
+      <div class="wh-row">
+        <div>
+          <div style="font-weight:600;font-size:.88rem;">$${parseFloat(r.amount).toFixed(2)}</div>
+          <div style="font-size:.75rem;color:var(--muted);">${r.accNum} · ${new Date(r.submittedAt).toLocaleDateString()}</div>
+        </div>
+        <span class="wh-status ${r.status==='approved'?'wh-a':r.status==='rejected'?'wh-r':'wh-p'}">${r.status}</span>
+      </div>`).join('');
+  });
+}
+
+function openWithdrawModal(){
+  if(!user){openModal('authModal');return;}
+  // Pre-fill available balance
+  db.ref('tradex_wallets/'+user.uid).once('value').then(snap=>{
+    const w=snap.val()||{balance:0};
+    const el=document.getElementById('wAvailLabel');
+    if(el)el.textContent='$'+(w.balance||0).toFixed(2);
+  });
+  openModal('withdrawModal');
+}
+
+function checkAccNum(){
+  const v=document.getElementById('wAccNum').value.trim();
+  document.getElementById('wErr').textContent='';
+}
+function checkWithdrawAmount(){document.getElementById('wErr').textContent='';}
+
+async function submitWithdraw(){
+  if(!user){openModal('authModal');return;}
+  const accNum=document.getElementById('wAccNum').value.trim();
+  const accName=document.getElementById('wAccName').value.trim();
+  const amount=parseFloat(document.getElementById('wAmount').value);
+  const err=document.getElementById('wErr');
+  if(!accNum){err.textContent='Please enter your account number.';return;}
+  if(!accName){err.textContent='Please enter the account name.';return;}
+  if(!amount||amount<=0){err.textContent='Please enter a valid amount.';return;}
+  // Check balance
+  const wSnap=await db.ref('tradex_wallets/'+user.uid).once('value');
+  const bal=(wSnap.val()||{}).balance||0;
+  if(amount>bal){err.textContent=`Insufficient balance. Available: $${bal.toFixed(2)}`;return;}
+  const btn=document.getElementById('wSubmitBtn');
+  btn.textContent='Submitting...';btn.disabled=true;
+  const req={
+    sellerUid:user.uid,sellerName:user.name,sellerEmail:user.email,
+    accNum,accName,amount,
+    bank:'Atlantas Union Bank',
+    status:'pending',
+    submittedAt:new Date().toISOString()
+  };
+  await db.ref('tradex_withdrawals').push(req);
+  // Deduct from balance, add to pending
+  await db.ref('tradex_wallets/'+user.uid).transaction(w=>{
+    if(!w)return w;
+    w.balance=(w.balance||0)-amount;
+    w.pending=(w.pending||0)+amount;
+    return w;
+  });
+  btn.textContent='Submit Withdrawal Request';btn.disabled=false;
+  closeModal('withdrawModal');
+  showToast('✅ Withdrawal request submitted! Admin will process it soon.');
+  document.getElementById('wAccNum').value='';
+  document.getElementById('wAccName').value='';
+  document.getElementById('wAmount').value='';
+}
+
+function noAccountClick(){
+  closeModal('withdrawModal');
+  window.open('https://viccybank.firebaseapp.com','_blank');
+  showToast('🏦 Opening Atlantas Union Bank to create an account...');
+}
+
+// ── ADMIN PANEL ───────────────────────────────────────────────────────────────
+const ADMIN_EMAIL='admin@gmail.com';
+const ADMIN_PASS='sharaibi';
+let adminFilter='all';
+
+function checkAdminAccess(){
+  if(user&&user.email===ADMIN_EMAIL){
+    const el=document.getElementById('adminNavLink');
+    if(el)el.style.display='block';
+  }
+}
+
+function loadAdminPanel(){
+  if(!user||user.email!==ADMIN_EMAIL){showView('home');showToast('⛔ Access denied');return;}
+  document.getElementById('adminEmail').textContent=user.email;
+  db.ref('tradex_withdrawals').on('value',snap=>{
+    let all=[],pending=0,approved=0,rejected=0,totalPaid=0;
+    if(snap.exists()){
+      snap.forEach(c=>{const v=c.val();if(v){all.push({key:c.key,...v});}});
+      all.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+      pending=all.filter(x=>x.status==='pending').length;
+      approved=all.filter(x=>x.status==='approved').length;
+      rejected=all.filter(x=>x.status==='rejected').length;
+      totalPaid=all.filter(x=>x.status==='approved').reduce((s,x)=>s+parseFloat(x.amount||0),0);
+    }
+    const pc=document.getElementById('adminPendingCount');if(pc)pc.textContent=pending;
+    const ac=document.getElementById('adminApprovedCount');if(ac)ac.textContent=approved;
+    const rc=document.getElementById('adminRejectedCount');if(rc)rc.textContent=rejected;
+    const tp=document.getElementById('adminTotalPaid');if(tp)tp.textContent='$'+totalPaid.toFixed(2);
+    renderAdminList(all);
+  });
+}
+
+function renderAdminList(all){
+  const el=document.getElementById('adminWithdrawList');if(!el)return;
+  const list=adminFilter==='all'?all:all.filter(x=>x.status===adminFilter);
+  if(!list.length){el.innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:40px;font-size:.88rem;">No requests found.</div>';return;}
+  el.innerHTML=list.map(r=>`
+    <div class="aw-card ${r.status}">
+      <span class="aw-status ${r.status}">${r.status.toUpperCase()}</span>
+      <div class="aw-row"><span>Seller</span><strong>${r.sellerName} (${r.sellerEmail})</strong></div>
+      <div class="aw-row"><span>Amount</span><strong style="color:#4ade80;font-size:1.05rem;">$${parseFloat(r.amount).toFixed(2)}</strong></div>
+      <div class="aw-row"><span>Bank</span><strong>${r.bank}</strong></div>
+      <div class="aw-row"><span>Account No.</span><strong>${r.accNum}</strong></div>
+      <div class="aw-row"><span>Account Name</span><strong>${r.accName}</strong></div>
+      <div class="aw-row"><span>Submitted</span><strong>${new Date(r.submittedAt).toLocaleString()}</strong></div>
+      ${r.status==='pending'?`<div class="aw-actions">
+        <button class="aw-btn aw-approve" onclick="adminApprove('${r.key}','${r.sellerUid}',${r.amount})">✅ Approve & Pay</button>
+        <button class="aw-btn aw-reject" onclick="adminReject('${r.key}','${r.sellerUid}',${r.amount})">❌ Reject</button>
+      </div>`:`<div style="font-size:.78rem;color:rgba(255,255,255,.35);margin-top:10px;">${r.processedAt?'Processed: '+new Date(r.processedAt).toLocaleString():''}</div>`}
+    </div>`).join('');
+}
+
+function filterAdmin(f){
+  adminFilter=f;
+  ['all','pending','approved'].forEach(id=>{
+    const btn=document.getElementById('af-'+id);
+    if(btn){btn.style.background=id===f?'rgba(255,255,255,.15)':'transparent';btn.style.color=id===f?'#fff':'rgba(255,255,255,.5)';}
+  });
+  db.ref('tradex_withdrawals').once('value').then(snap=>{
+    const all=[];
+    if(snap.exists())snap.forEach(c=>{const v=c.val();if(v)all.push({key:c.key,...v});});
+    all.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+    renderAdminList(all);
+  });
+}
+
+async function adminApprove(key,sellerUid,amount){
+  if(!confirm(`Approve payment of $${parseFloat(amount).toFixed(2)} to seller? This will mark it as paid.`))return;
+  await db.ref('tradex_withdrawals/'+key).update({status:'approved',processedAt:new Date().toISOString(),processedBy:user.email});
+  // Move from pending back but mark paid (remove from pending balance)
+  await db.ref('tradex_wallets/'+sellerUid).transaction(w=>{
+    if(!w)return w;
+    w.pending=Math.max(0,(w.pending||0)-parseFloat(amount));
+    return w;
+  });
+  // Notify seller via Firebase
+  await db.ref('tradex_notifications/'+sellerUid).push({
+    msg:`💰 Your withdrawal of $${parseFloat(amount).toFixed(2)} has been approved and paid to your Atlantas Bank account!`,
+    type:'withdraw_approved',at:new Date().toISOString(),read:false
+  });
+  showToast('✅ Withdrawal approved & marked as paid!');
+}
+
+async function adminReject(key,sellerUid,amount){
+  const reason=prompt('Reason for rejection (seller will see this):');
+  if(!reason)return;
+  await db.ref('tradex_withdrawals/'+key).update({status:'rejected',processedAt:new Date().toISOString(),processedBy:user.email,rejectionReason:reason});
+  // Refund balance
+  await db.ref('tradex_wallets/'+sellerUid).transaction(w=>{
+    if(!w)return w;
+    w.balance=(w.balance||0)+parseFloat(amount);
+    w.pending=Math.max(0,(w.pending||0)-parseFloat(amount));
+    return w;
+  });
+  await db.ref('tradex_notifications/'+sellerUid).push({
+    msg:`⚠️ Your withdrawal of $${parseFloat(amount).toFixed(2)} was rejected. Reason: ${reason}. Funds have been returned to your balance.`,
+    type:'withdraw_rejected',at:new Date().toISOString(),read:false
+  });
+  showToast('❌ Withdrawal rejected. Balance refunded to seller.');
+}
+
+function adminLogout(){
+  logout();
 }
 
 // ── MODALS ────────────────────────────────────────────────────────────────────
