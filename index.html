@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Tradex — Buy & Sell Anything</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -319,28 +319,64 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 .notif-btn-decline{background:var(--surface2);color:var(--muted);border:1.5px solid var(--border);}
 .notif-empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:.85rem;}
 @media(max-width:900px){
-  nav{padding:0 14px;height:auto;min-height:61px;flex-wrap:wrap;gap:8px;}
+  nav{padding:0 12px;height:auto;min-height:56px;flex-wrap:wrap;gap:6px;padding-top:8px;padding-bottom:8px;}
   .ns{display:none;}
-  .hero{padding:34px 14px;flex-direction:column;}
+  .hero{padding:28px 14px;flex-direction:column;}
   .hero h1{font-size:1.75rem;}
-  .hstats{flex-wrap:wrap;gap:16px;}
-  .sec,.ps,.sp,.als{padding:20px 14px;}
-  .fb{padding:11px 14px;overflow-x:auto;}
-  .cart-sb{width:100%;}
+  .hstats{flex-wrap:wrap;gap:14px;}
+  .sec,.ps,.sp,.als{padding:18px 14px;}
+  .fb{padding:10px 14px;overflow-x:auto;gap:7px;}
+  .cart-sb{width:100%;max-width:100vw;}
   .fr{grid-template-columns:1fr;}
-  .pg{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
-  .sr{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));}
+  .pg{grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;}
+  .sr{grid-template-columns:repeat(auto-fit,minmax(110px,1fr));}
   .dh{flex-direction:column;align-items:flex-start;}
   .dtabs{overflow-x:auto;width:100%;}
-  .modal{padding:22px 18px;width:95%;max-width:95vw;}
+  .modal{padding:20px 16px;width:96%;max-width:96vw;}
   .view{overflow-x:hidden;}
+  #teamWorkerPanel{width:100%;max-width:100vw;}
+  .notif-panel{right:8px;left:8px;width:auto;}
 }
 @media(max-width:480px){
-  .pg{grid-template-columns:1fr 1fr;}
-  .hero h1{font-size:1.45rem;}
-  .na{gap:6px;}
-  .nb{padding:6px 10px;font-size:.8rem;}
-  .logo{font-size:1.1rem;}
+  nav{padding:7px 10px;gap:5px;}
+  .logo{font-size:1.05rem;}
+  .na{gap:5px;}
+  .cb{padding:6px 8px;font-size:.92rem;}
+  .nb{padding:6px 9px;font-size:.78rem;}
+  .ub{padding:4px 8px;font-size:.8rem;gap:5px;}
+  .av{width:22px;height:22px;font-size:.62rem;}
+  #navNm{display:none;}
+  #teamContextPill button{padding:4px 8px;font-size:.75rem;}
+  .hero{padding:22px 12px;}
+  .hero h1{font-size:1.35rem;letter-spacing:-.03em;}
+  .hero p{font-size:.87rem;}
+  .hcta{padding:9px 16px;font-size:.84rem;}
+  .pg{grid-template-columns:1fr 1fr;gap:10px;}
+  .pin{padding:8px 10px 10px;}
+  .pname{font-size:.82rem;}
+  .pp{font-size:.95rem;}
+  .ac{padding:7px 10px;font-size:.78rem;}
+  .sec,.ps,.sp,.als{padding:14px 10px;}
+  .fb{padding:8px 10px;font-size:.82rem;}
+  .fs,.ft{font-size:.78rem;padding:5px 8px;}
+  .modal{padding:18px 14px;border-radius:14px;}
+  .sp{padding:14px 10px;}
+  .scard{padding:12px;}
+  .scn{font-size:1.4rem;}
+  .dtab{padding:7px 11px;font-size:.78rem;}
+}
+@media(max-width:375px){
+  .pg{grid-template-columns:1fr 1fr;gap:8px;}
+  .pin{padding:7px 8px 9px;}
+  .pname{font-size:.78rem;}
+  .pp{font-size:.88rem;}
+  .ac{padding:6px 8px;font-size:.74rem;border-radius:6px;}
+  .hero h1{font-size:1.2rem;}
+  .na{gap:4px;}
+  .cb{padding:5px 7px;}
+  .nb{display:none;}
+  .logo{font-size:.98rem;}
+  .modal{padding:16px 12px;}
 }
 </style>
 </head>
@@ -694,51 +730,55 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 </nav>
 
 <!-- TEAM WORKER PANEL (sidebar) -->
-<div id="teamWorkerPanel" style="display:none;position:fixed;top:0;right:0;bottom:0;width:340px;max-width:100vw;background:var(--surface);border-left:1.5px solid var(--border);z-index:300;flex-direction:column;animation:si .3s ease;overflow-y:auto;">
-  <div style="background:linear-gradient(135deg,#1a1714,#3a2010);padding:20px 20px 18px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;color:#fff;" id="twpStoreName">Store</div>
-      <button onclick="closeTeamPanel()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;font-size:.85rem;">✕</button>
+<div id="teamWorkerPanel" style="display:none;position:fixed;top:0;right:0;bottom:0;width:340px;max-width:100vw;background:var(--surface);border-left:1.5px solid var(--border);z-index:300;flex-direction:column;animation:si .3s ease;">
+  <!-- Sticky header — always visible -->
+  <div style="background:linear-gradient(135deg,#1a1714,#3a2010);padding:18px 18px 16px;flex-shrink:0;position:sticky;top:0;z-index:2;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:#fff;" id="twpStoreName">Store</div>
+      <button onclick="closeTeamPanel()" style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:.85rem;font-weight:600;letter-spacing:.03em;">✕ Close</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
-      <div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;" id="twpInitial">S</div>
+      <div style="width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;flex-shrink:0;" id="twpInitial">S</div>
       <div>
-        <div style="font-size:.78rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.07em;">Your Role</div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;color:#fff;" id="twpRole">Member</div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.07em;">Your Role</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;color:#fff;" id="twpRole">Member</div>
       </div>
     </div>
   </div>
   
-  <!-- Company Balance -->
-  <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
-    <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Company Wallet Balance</div>
-    <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;" id="twpCompanyBal">$0.00</div>
-    <div style="font-size:.78rem;color:var(--muted);margin-top:4px;" id="twpCompanyPending"></div>
-    <div style="margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1.5px solid var(--border);">
-      <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Your Withdrawal Limit</div>
-      <div style="display:flex;align-items:baseline;gap:6px;">
-        <div style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:var(--accent);" id="twpMyLimit">$0.00</div>
-        <div style="font-size:.75rem;color:var(--muted);" id="twpLimitPct"></div>
+  <!-- Scrollable body -->
+  <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+    <!-- Company Balance -->
+    <div style="padding:16px 18px;border-bottom:1px solid var(--border);">
+      <div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Company Wallet Balance</div>
+      <div style="font-family:'Syne',sans-serif;font-size:1.85rem;font-weight:800;" id="twpCompanyBal">$0.00</div>
+      <div style="font-size:.76rem;color:var(--muted);margin-top:3px;" id="twpCompanyPending"></div>
+      <div style="margin-top:10px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1.5px solid var(--border);">
+        <div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Your Withdrawal Limit</div>
+        <div style="display:flex;align-items:baseline;gap:6px;">
+          <div style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:var(--accent);" id="twpMyLimit">$0.00</div>
+          <div style="font-size:.73rem;color:var(--muted);" id="twpLimitPct"></div>
+        </div>
       </div>
+      <button onclick="openWithdrawModal();closeTeamPanel();" style="width:100%;margin-top:10px;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;">💸 Request Withdrawal</button>
     </div>
-    <button onclick="openWithdrawModal()" style="width:100%;margin-top:10px;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:.86rem;cursor:pointer;">💸 Request Withdrawal</button>
-  </div>
-  
-  <!-- Tasks / Permissions -->
-  <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
-    <div style="font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">Your Tasks</div>
-    <div id="twpTasks"></div>
-  </div>
-  
-  <!-- Quick Actions -->
-  <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
-    <div style="font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">Quick Actions</div>
-    <div id="twpActions" style="display:flex;flex-direction:column;gap:8px;"></div>
-  </div>
+    
+    <!-- Tasks / Permissions -->
+    <div style="padding:16px 18px;border-bottom:1px solid var(--border);">
+      <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Your Tasks</div>
+      <div id="twpTasks"></div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div style="padding:16px 18px;border-bottom:1px solid var(--border);">
+      <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Quick Actions</div>
+      <div id="twpActions" style="display:flex;flex-direction:column;gap:7px;"></div>
+    </div>
 
-  <!-- Switch back -->
-  <div style="padding:16px 20px;">
-    <button onclick="closeTeamPanel();showSellerDash()" style="width:100%;padding:10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:500;cursor:pointer;color:var(--text);">📊 View My Own Dashboard</button>
+    <!-- Switch back -->
+    <div style="padding:14px 18px 28px;">
+      <button onclick="closeTeamPanel();showSellerDash()" style="width:100%;padding:10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:500;cursor:pointer;color:var(--text);">📊 View Full Dashboard</button>
+    </div>
   </div>
 </div>
 
@@ -2138,7 +2178,63 @@ function openChatPanel() {
   const panel = document.getElementById('chatPanel');
   panel.style.display = 'flex';
   document.getElementById('cartSb').classList.remove('open');
-  loadChats();
+  
+  if (!user) {
+    document.getElementById('chatList').innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:.85rem;">Sign in to view messages</div>';
+    return;
+  }
+  
+  // Load chats and auto-open any unread conversation
+  document.getElementById('chatModeToggle').style.display = 'block';
+  loadChatsAndJumpToUnread();
+}
+
+function loadChatsAndJumpToUnread() {
+  // Check both seller and buyer chats, find the one with the most recent unread
+  const promises = [
+    db.ref('tradex_chats').orderByChild('sellerUid').equalTo(user.uid).once('value'),
+    db.ref('tradex_chats').orderByChild('buyerUid').equalTo(user.uid).once('value')
+  ];
+  
+  Promise.all(promises).then(([sellerSnap, buyerSnap]) => {
+    let bestChat = null;
+    let bestMode = 'seller';
+    let bestTime = '';
+    
+    const check = (snap, mode) => {
+      if (!snap.exists()) return;
+      snap.forEach(c => {
+        const chat = { key: c.key, ...c.val() };
+        if (chat.unreadCount > 0) {
+          const t = chat.lastMessageAt || chat.createdAt || '';
+          if (!bestChat || t > bestTime) {
+            bestChat = chat;
+            bestMode = mode;
+            bestTime = t;
+          }
+        }
+      });
+    };
+    
+    check(sellerSnap, 'seller');
+    check(buyerSnap, 'buyer');
+    
+    if (bestChat) {
+      // Jump straight to the unread conversation
+      currentChatMode = bestMode;
+      const sellerBtn = document.getElementById('sellerChatBtn');
+      const buyerBtn = document.getElementById('buyerChatBtn');
+      if (sellerBtn && buyerBtn) {
+        sellerBtn.style.background = bestMode === 'seller' ? 'var(--surface)' : 'transparent';
+        sellerBtn.style.color = bestMode === 'seller' ? 'var(--text)' : 'var(--muted)';
+        buyerBtn.style.background = bestMode === 'buyer' ? 'var(--surface)' : 'transparent';
+        buyerBtn.style.color = bestMode === 'buyer' ? 'var(--text)' : 'var(--muted)';
+      }
+      openChat(bestChat.key);
+    } else {
+      loadChats();
+    }
+  });
 }
 
 function toggleChat() {
@@ -2203,49 +2299,41 @@ function renderChatList(snap) {
   const chats = [];
   
   if (snap.exists()) {
-    snap.forEach(c => {
-      const chat = { key: c.key, ...c.val() };
-      chats.push(chat);
-    });
+    snap.forEach(c => chats.push({ key: c.key, ...c.val() }));
   }
   
   if (!chats.length) {
     chatList.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:.85rem;">
-      No ${currentChatMode === 'seller' ? 'buyer' : 'seller'} messages yet
-    </div>`;
+      No ${currentChatMode === 'seller' ? 'buyer' : 'seller'} messages yet</div>`;
     return;
   }
   
-  // Sort by last message time
-  chats.sort((a, b) => {
-    const aTime = a.lastMessageAt || a.createdAt;
-    const bTime = b.lastMessageAt || b.createdAt;
-    return new Date(bTime) - new Date(aTime);
-  });
+  chats.sort((a, b) => new Date(b.lastMessageAt||b.createdAt) - new Date(a.lastMessageAt||a.createdAt));
   
   chatList.innerHTML = chats.map(chat => {
     const otherPerson = currentChatMode === 'seller' ? chat.buyerName : chat.sellerName;
-    const unread = chat.unreadCount || 0;
+    // Only show unread badge if THIS user is the intended recipient
+    const unread = (chat.unreadFor === user.uid) ? (chat.unreadCount || 0) : 0;
+    const timeStr = chat.lastMessageAt ? formatTimeAgo(chat.lastMessageAt) : '';
     
-    return `
-      <div onclick="openChat('${chat.key}')" style="padding:12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
-        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px;">
-          <div style="font-weight:600;font-size:.88rem;">${otherPerson}</div>
-          ${unread > 0 ? `<span style="background:var(--accent);color:#fff;border-radius:12px;padding:2px 7px;font-size:.7rem;font-weight:700;">${unread}</span>` : ''}
-        </div>
-        <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px;">${chat.productTitle || 'Product inquiry'}</div>
-        <div style="font-size:.76rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-          ${chat.lastMessage || 'Start conversation'}
+    return `<div onclick="openChat('${chat.key}')" style="padding:13px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;${unread>0?'background:var(--al);':''}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${unread>0?'var(--al)':'transparent'}'">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <div style="font-weight:600;font-size:.88rem;${unread>0?'color:var(--text);':''}">${otherPerson}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:.7rem;color:var(--muted);">${timeStr}</span>
+          ${unread>0?`<span style="background:var(--accent);color:#fff;border-radius:12px;padding:2px 7px;font-size:.7rem;font-weight:700;">${unread}</span>`:''}
         </div>
       </div>
-    `;
+      <div style="font-size:.77rem;color:var(--muted);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${chat.productTitle||'Product inquiry'}</div>
+      <div style="font-size:.75rem;color:${unread>0?'var(--text)':'var(--muted)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:${unread>0?'500':'400'};">${chat.lastMessage||'Start conversation'}</div>
+    </div>`;
   }).join('');
   
-  // Update badge
-  const totalUnread = chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+  // Badge: only count chats where this user is the unread recipient
+  const totalUnread = chats.reduce((sum, c) => sum + ((c.unreadFor === user.uid) ? (c.unreadCount||0) : 0), 0);
   const badge = document.getElementById('chatBadge');
   if (totalUnread > 0) {
-    badge.textContent = totalUnread;
+    badge.textContent = totalUnread > 9 ? '9+' : totalUnread;
     badge.style.display = 'flex';
   } else {
     badge.style.display = 'none';
@@ -2269,8 +2357,9 @@ function openChat(chatKey) {
     
     loadChatMessages(chatKey);
     
-    if (currentChatMode === 'seller') {
-      db.ref('tradex_chats/' + chatKey).update({ unreadCount: 0 });
+    // Clear unread only if this user is the intended recipient
+    if (chat.unreadFor === user.uid) {
+      db.ref('tradex_chats/' + chatKey).update({ unreadCount: 0, unreadFor: null });
     }
   });
 }
@@ -2315,24 +2404,43 @@ function loadChatMessages(chatKey) {
 function sendChatMessage() {
   const input = document.getElementById('chatInput');
   const message = input.value.trim();
-  
   if (!message || !activeChat) return;
   
   const msgData = {
     senderUid: user.uid,
     senderName: user.name,
-    message: message,
+    message,
     timestamp: new Date().toISOString()
   };
   
   db.ref('tradex_messages/' + activeChat.key).push(msgData);
   
-  // Update last message in chat
+  // Only the OTHER person's unread count goes up
+  // If I'm the buyer messaging the seller → seller's unread goes up
+  // If I'm the seller messaging the buyer → buyer's unread goes up
+  // We track this as a single unreadCount on the chat, but only increment
+  // when the sender is NOT the one who would see it as "seller"
+  const iAmSeller = activeChat.sellerUid === user.uid;
+  const currentUnread = activeChat.unreadCount || 0;
+  
   db.ref('tradex_chats/' + activeChat.key).update({
     lastMessage: message,
     lastMessageAt: new Date().toISOString(),
-    unreadCount: (activeChat.unreadCount || 0) + 1
+    unreadCount: currentUnread + 1,
+    unreadFor: iAmSeller ? activeChat.buyerUid : activeChat.sellerUid
   });
+  
+  // Send notification to the other person
+  const recipientUid = iAmSeller ? activeChat.buyerUid : activeChat.sellerUid;
+  if (recipientUid) {
+    db.ref('tradex_notifications/' + recipientUid).push({
+      type: 'message',
+      msg: `💬 New message from ${user.name}: "${message.length > 40 ? message.slice(0,40)+'…' : message}"`,
+      at: new Date().toISOString(),
+      read: false,
+      chatKey: activeChat.key
+    });
+  }
   
   input.value = '';
 }
