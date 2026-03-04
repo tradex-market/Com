@@ -69,8 +69,8 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 .ub{display:flex;align-items:center;gap:7px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:.85rem;font-weight:500;transition:border-color .2s;position:relative;}
 .ub:hover{border-color:var(--text);}
 .av{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;}
-.dd{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;min-width:185px;box-shadow:var(--shl);overflow:hidden;}
-.ub:hover .dd{display:block;}
+.dd{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;min-width:185px;box-shadow:var(--shl);overflow:hidden;z-index:500;}
+.dd.open{display:block;}
 .dd a,.dd button{display:block;width:100%;text-align:left;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:.84rem;color:var(--text);text-decoration:none;background:none;border:none;cursor:pointer;transition:background .15s;}
 .dd a:hover,.dd button:hover{background:var(--bg);}
 .dd hr{border:none;border-top:1px solid var(--border);margin:3px 0;}
@@ -294,6 +294,30 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 .toast.show{transform:translateX(-50%) translateY(0);}
 .view{display:none;}
 .view.active{display:block;}
+/* NOTIFICATION PANEL */
+.notif-panel{display:none;position:fixed;top:68px;right:14px;width:340px;max-width:calc(100vw - 28px);background:var(--surface);border:1.5px solid var(--border);border-radius:14px;box-shadow:var(--shl);z-index:450;max-height:480px;flex-direction:column;animation:su .25s ease;}
+.notif-panel.open{display:flex;}
+.notif-hd{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.notif-hd h4{font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;}
+.notif-mark{font-size:.75rem;color:var(--accent);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;}
+.notif-list{flex:1;overflow-y:auto;}
+.notif-item{padding:14px 18px;border-bottom:1px solid var(--border);transition:background .15s;display:flex;gap:12px;align-items:flex-start;}
+.notif-item:hover{background:var(--bg);}
+.notif-item.unread{background:#fff9f7;}
+.notif-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.notif-icon.invite{background:#fff0eb;}
+.notif-icon.order{background:#e8f5e9;}
+.notif-icon.msg{background:#e8f0ff;}
+.notif-icon.alert{background:#fff8e1;}
+.notif-body{flex:1;}
+.notif-msg{font-size:.84rem;line-height:1.45;color:var(--text);}
+.notif-time{font-size:.72rem;color:var(--muted);margin-top:3px;}
+.notif-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:5px;}
+.notif-actions{display:flex;gap:6px;margin-top:8px;}
+.notif-btn{padding:5px 12px;border-radius:6px;font-size:.77rem;font-weight:600;cursor:pointer;border:none;transition:opacity .2s;}
+.notif-btn-accept{background:var(--accent);color:#fff;}
+.notif-btn-decline{background:var(--surface2);color:var(--muted);border:1.5px solid var(--border);}
+.notif-empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:.85rem;}
 @media(max-width:900px){
   nav{padding:0 14px;height:auto;min-height:61px;flex-wrap:wrap;gap:8px;}
   .ns{display:none;}
@@ -607,6 +631,10 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
       💬
       <span class="cc" id="chatBadge" style="display:none;">0</span>
     </button>
+    <button class="cb" id="notifButton" onclick="toggleNotifPanel()" style="position:relative;">
+      🔔
+      <span class="cc" id="notifBadge" style="display:none;">0</span>
+    </button>
     <button class="cb" id="cartButton" onclick="toggleCart()">🛒<span class="cc" id="cbadge">0</span></button>
     <div id="guestNav">
       <div style="display:flex;gap:7px;">
@@ -615,22 +643,33 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
       </div>
     </div>
     <div id="userNav" style="display:none;">
-      <div class="ub">
+      <div class="ub" id="userMenuBtn" onclick="toggleUserMenu()">
         <div class="av" id="navAv">?</div>
         <span id="navNm">User</span>
         <span>▾</span>
-        <div class="dd">
-          <a href="#" onclick="showView('home')">🏠 Browse</a>
-          <a href="#" onclick="showSellerDash()">📊 Seller Dashboard</a>
-          <a href="#" onclick="showView('addListing')">➕ Add Listing</a>
-          <a href="#" id="adminNavLink" style="display:none;" onclick="showView('admin');loadAdminPanel()">🛡️ Admin Panel</a>
+        <div class="dd" id="userDropdown">
+          <a href="#" onclick="closeUserMenu();showView('home')">🏠 Browse</a>
+          <a href="#" onclick="closeUserMenu();showSellerDash()">📊 Seller Dashboard</a>
+          <a href="#" onclick="closeUserMenu();showView('addListing')">➕ Add Listing</a>
+          <a href="#" id="adminNavLink" style="display:none;" onclick="closeUserMenu();showView('admin');loadAdminPanel()">🛡️ Admin Panel</a>
           <hr>
-          <button onclick="logout()">Sign Out</button>
+          <button onclick="closeUserMenu();logout()">Sign Out</button>
         </div>
       </div>
     </div>
   </div>
 </nav>
+
+<!-- NOTIFICATION PANEL -->
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-hd">
+    <h4>🔔 Notifications</h4>
+    <button class="notif-mark" onclick="markAllNotifsRead()">Mark all read</button>
+  </div>
+  <div class="notif-list" id="notifList">
+    <div class="notif-empty">Sign in to see your notifications</div>
+  </div>
+</div>
 
 <!-- HOME VIEW -->
 <div class="view active" id="view-home">
@@ -1072,10 +1111,14 @@ const edata={
   50:[{user:'Raj S.',time:'2d ago',msg:'Any crashes on this bike?'},{user:'MotoWorld',time:'1d ago',msg:'None whatsoever. Garage kept, serviced on time.',isSeller:true}],
 };
 
+// ── ADMIN ──────────────────────────────────────────────────────────────────────
+const ADMIN_EMAIL='admin@gmail.com';
+const ADMIN_PASS='sharaibi';
+let adminFilter='all';
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
   loadAllProducts();
-  renderAgents();
   auth.onAuthStateChanged(fbUser=>{
     if(fbUser){
       usersRef.child(fbUser.uid).once('value').then(snap=>{
@@ -1085,10 +1128,13 @@ document.addEventListener('DOMContentLoaded',()=>{
         loadManagedStores();
         checkAdminAccess();
       });
+    } else {
+      user = null;
+      document.getElementById('guestNav').style.display='flex';
+      document.getElementById('userNav').style.display='none';
     }
   });
 });
-
 // ── ALL PRODUCTS CACHE ────────────────────────────────────────────────────────
 let allProductsCache = [];
 
@@ -1127,21 +1173,6 @@ function loadAllProducts() {
 }
 
 function showView(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const el=document.getElementById('view-'+v);if(el)el.classList.add('active');window.scrollTo(0,0);}
-function showSellerDash(){
-  if(!user){openModal('authModal');showToast('🔐 Sign in first');return;}
-  showView('seller');
-  sdtab('overview',document.querySelector('.dtab'));
-  // Load balance for overview banner
-  db.ref('tradex_wallets/'+user.uid).once('value').then(snap=>{
-    const w=snap.val()||{balance:0,pending:0};
-    const ob=document.getElementById('overviewBal');
-    const op=document.getElementById('overviewPending');
-    if(ob)ob.textContent='$'+(w.balance||0).toFixed(2);
-    if(op)op.textContent='Pending withdrawal: $'+(w.pending||0).toFixed(2);
-  });
-  // Load seller listings
-  loadSellerListings();
-}
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
 function renderProducts(list){
@@ -1488,6 +1519,27 @@ function doRegister(){
     });
   }).catch(e=>{err.textContent=e.message;});
 }
+// ── USER MENU TOGGLE ─────────────────────────────────────────────────────────
+function toggleUserMenu() {
+  const dd = document.getElementById('userDropdown');
+  dd.classList.toggle('open');
+  // Close notif panel if open
+  document.getElementById('notifPanel').classList.remove('open');
+}
+function closeUserMenu() {
+  const dd = document.getElementById('userDropdown');
+  if (dd) dd.classList.remove('open');
+}
+// Close menus when clicking outside
+document.addEventListener('click', e => {
+  const btn = document.getElementById('userMenuBtn');
+  const dd = document.getElementById('userDropdown');
+  if (btn && dd && !btn.contains(e.target)) dd.classList.remove('open');
+  const np = document.getElementById('notifPanel');
+  const nb = document.getElementById('notifButton');
+  if (np && nb && !np.contains(e.target) && !nb.contains(e.target)) np.classList.remove('open');
+});
+
 function updateUserUI(){
   const ini=user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('navAv').textContent=ini;
@@ -1497,40 +1549,262 @@ function updateUserUI(){
   
   // Hide seller features from admin
   if(user.email===ADMIN_EMAIL){
-    // Hide seller dashboard and add listing links
     const sellerLinks=document.querySelectorAll('#userNav a[onclick*="showSellerDash"], #userNav a[onclick*="addListing"]');
     sellerLinks.forEach(link=>link.style.display='none');
-    
-    // Hide cart button from admin
     const cartBtn=document.getElementById('cartButton');
     if(cartBtn)cartBtn.style.display='none';
-    
-    // Hide browse link - admin only manages, doesn't shop
-    const browseLink=document.querySelector('#userNav a[onclick*="view-home"]');
-    if(browseLink)browseLink.style.display='none';
-    
-    // Redirect to admin panel if trying to access seller features
     showView('admin');
     loadAdminPanel();
   } else {
-    // Show all features for regular users
     const sellerLinks=document.querySelectorAll('#userNav a[onclick*="showSellerDash"], #userNav a[onclick*="addListing"]');
     sellerLinks.forEach(link=>link.style.display='block');
-    
     const cartBtn=document.getElementById('cartButton');
     if(cartBtn)cartBtn.style.display='block';
-    
-    const browseLink=document.querySelector('#userNav a[onclick*="view-home"]');
-    if(browseLink)browseLink.style.display='block';
+  }
+  // Start listening for notifications
+  loadNotifications();
+}
+
+function showSellerDash(){
+  if(!user){openModal('authModal');showToast('🔐 Sign in first');return;}
+  showView('seller');
+  // activate overview tab
+  document.querySelectorAll('.dtab').forEach((b,i)=>b.classList.toggle('active',i===0));
+  ['overview','listings','orders','team','wallet'].forEach((t,i)=>{
+    const el=document.getElementById('sd-'+t);
+    if(el)el.style.display=i===0?'block':'none';
+  });
+  // Load balance for overview banner
+  db.ref('tradex_wallets/'+user.uid).once('value').then(snap=>{
+    const w=snap.val()||{balance:0,pending:0};
+    const ob=document.getElementById('overviewBal');
+    const op=document.getElementById('overviewPending');
+    if(ob)ob.textContent='$'+(w.balance||0).toFixed(2);
+    if(op)op.textContent='Pending withdrawal: $'+(w.pending||0).toFixed(2);
+  });
+  loadSellerListings();
+  // Load real team from Firebase
+  loadFirebaseTeam();
+}
+
+// Load real team members from Firebase
+function loadFirebaseTeam() {
+  if (!user) return;
+  db.ref(`tradex_invites/${user.uid}`).on('value', snap => {
+    const realAgents = [];
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const inv = c.val();
+        if (inv) {
+          const nm = inv.agentName || inv.agentEmail.split('@')[0];
+          realAgents.push({
+            id: c.key,
+            name: nm,
+            email: inv.agentEmail,
+            role: inv.roleLabel || inv.role,
+            online: false,
+            ini: nm.slice(0,2).toUpperCase(),
+            accepted: inv.status === 'accepted',
+            status: inv.status
+          });
+        }
+      });
+    }
+    agents = realAgents;
+    renderAgents();
+    // Update counts
+    const e1=document.getElementById('tmcnt'); if(e1)e1.textContent=realAgents.length;
+    const e2=document.getElementById('tcnt');  if(e2)e2.textContent=realAgents.length;
+  });
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+let notifListener = null;
+
+function toggleNotifPanel() {
+  const panel = document.getElementById('notifPanel');
+  const isOpen = panel.classList.contains('open');
+  closeUserMenu();
+  if (isOpen) {
+    panel.classList.remove('open');
+  } else {
+    panel.classList.add('open');
+    if (user) markAllNotifsRead();
   }
 }
+
+function loadNotifications() {
+  if (!user) return;
+  if (notifListener) notifListener(); // detach previous
+  
+  notifListener = db.ref('tradex_notifications/' + user.uid)
+    .orderByChild('at')
+    .limitToLast(30)
+    .on('value', snap => {
+      const notifs = [];
+      if (snap.exists()) {
+        snap.forEach(c => notifs.push({ key: c.key, ...c.val() }));
+      }
+      notifs.reverse(); // newest first
+      renderNotifications(notifs);
+      
+      // Also check agent invites as notifications
+      loadInviteNotifications(notifs);
+    });
+}
+
+function loadInviteNotifications(existingNotifs) {
+  if (!user) return;
+  const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
+  db.ref(`tradex_agent_lookup/${emailKey}`).once('value').then(snap => {
+    const inviteNotifs = [];
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const inv = c.val();
+        if (inv && inv.status === 'pending') {
+          inviteNotifs.push({
+            key: c.key,
+            type: 'team_invite',
+            msg: `${inv.sellerName} invited you to join their store as ${inv.roleLabel}${inv.note ? '. Note: ' + inv.note : ''}`,
+            at: inv.sentAt,
+            read: false,
+            inviteData: inv
+          });
+        }
+      });
+    }
+    
+    const allNotifs = [...inviteNotifs, ...existingNotifs];
+    allNotifs.sort((a, b) => new Date(b.at) - new Date(a.at));
+    renderNotifications(allNotifs);
+  });
+}
+
+function renderNotifications(notifs) {
+  const list = document.getElementById('notifList');
+  const badge = document.getElementById('notifBadge');
+  if (!list) return;
+  
+  const unread = notifs.filter(n => !n.read).length;
+  if (unread > 0) {
+    badge.textContent = unread > 9 ? '9+' : unread;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+  
+  if (!notifs.length) {
+    list.innerHTML = '<div class="notif-empty">🎉 You\'re all caught up!<br><span style="font-size:.78rem;margin-top:6px;display:block;">Notifications about orders, team invites and messages will appear here.</span></div>';
+    return;
+  }
+  
+  list.innerHTML = notifs.map(n => {
+    const iconMap = {
+      team_invite: ['invite', '🤝'],
+      new_sale: ['order', '🎉'],
+      order_approved: ['order', '✅'],
+      order_rejected: ['alert', '⚠️'],
+      message: ['msg', '💬'],
+      withdrawal: ['alert', '💸'],
+      default: ['alert', '📣']
+    };
+    const [iconCls, icon] = iconMap[n.type] || iconMap.default;
+    const timeAgo = formatTimeAgo(n.at);
+    
+    const inviteActions = n.type === 'team_invite' ? `
+      <div class="notif-actions">
+        <button class="notif-btn notif-btn-accept" onclick="acceptInvite('${n.key}',event)">✓ Accept</button>
+        <button class="notif-btn notif-btn-decline" onclick="declineInvite('${n.key}',event)">✕ Decline</button>
+      </div>` : '';
+    
+    return `<div class="notif-item ${n.read ? '' : 'unread'}" id="notif-${n.key}">
+      <div class="notif-icon ${iconCls}">${icon}</div>
+      <div class="notif-body">
+        <div class="notif-msg">${n.msg}</div>
+        <div class="notif-time">${timeAgo}</div>
+        ${inviteActions}
+      </div>
+      ${!n.read ? '<div class="notif-dot"></div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function formatTimeAgo(isoStr) {
+  if (!isoStr) return '';
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  return Math.floor(h / 24) + 'd ago';
+}
+
+function markAllNotifsRead() {
+  if (!user) return;
+  db.ref('tradex_notifications/' + user.uid).once('value').then(snap => {
+    const updates = {};
+    if (snap.exists()) {
+      snap.forEach(c => { if (!c.val().read) updates[c.key + '/read'] = true; });
+    }
+    if (Object.keys(updates).length) {
+      db.ref('tradex_notifications/' + user.uid).update(updates);
+    }
+  });
+  document.getElementById('notifBadge').style.display = 'none';
+  document.querySelectorAll('.notif-item.unread').forEach(el => {
+    el.classList.remove('unread');
+    const dot = el.querySelector('.notif-dot');
+    if (dot) dot.remove();
+  });
+}
+
+function acceptInvite(inviteKey, e) {
+  e.stopPropagation();
+  if (!user) return;
+  const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
+  db.ref(`tradex_agent_lookup/${emailKey}/${inviteKey}`).once('value').then(snap => {
+    const inv = snap.val();
+    if (!inv) return;
+    // Accept in both places
+    db.ref(`tradex_agent_lookup/${emailKey}/${inviteKey}`).update({ status: 'accepted', acceptedAt: new Date().toISOString() });
+    db.ref(`tradex_invites/${inv.sellerUid}/${inviteKey}`).update({ status: 'accepted', acceptedAt: new Date().toISOString() });
+    // Notify seller
+    db.ref('tradex_notifications/' + inv.sellerUid).push({
+      type: 'invite_accepted',
+      msg: `🎉 ${user.name} accepted your invitation to join as ${inv.roleLabel}!`,
+      at: new Date().toISOString(),
+      read: false
+    });
+    // Remove the invite item from UI
+    const el = document.getElementById('notif-' + inviteKey);
+    if (el) el.remove();
+    showToast(`✅ You joined ${inv.sellerName}'s store as ${inv.roleLabel}!`);
+    loadManagedStores();
+  });
+}
+
+function declineInvite(inviteKey, e) {
+  e.stopPropagation();
+  if (!user) return;
+  const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
+  db.ref(`tradex_agent_lookup/${emailKey}/${inviteKey}`).update({ status: 'rejected' }).then(() => {
+    const el = document.getElementById('notif-' + inviteKey);
+    if (el) el.remove();
+    showToast('Invitation declined');
+  });
+}
 function logout(){
+  if (notifListener) { db.ref('tradex_notifications/' + (user?.uid||'')).off(); notifListener = null; }
   auth.signOut().then(()=>{
     user=null;
     document.getElementById('guestNav').style.display='flex';
     document.getElementById('userNav').style.display='none';
+    document.getElementById('notifBadge').style.display='none';
     const cartBtn=document.getElementById('cartButton');
     if(cartBtn)cartBtn.style.display='block';
+    document.getElementById('notifPanel').classList.remove('open');
+    closeUserMenu();
     showView('home');
     showToast('👋 Signed out');
   });
@@ -2388,11 +2662,6 @@ function noAccountClick(){
   window.open('https://atlantascredit.cash/','_blank');
   showToast('🏦 Opening Atlantas Credit to create an account...');
 }
-
-// ── ADMIN PANEL ───────────────────────────────────────────────────────────────
-const ADMIN_EMAIL='admin@gmail.com';
-const ADMIN_PASS='sharaibi';
-let adminFilter='all';
 
 function checkAdminAccess(){
   if(user&&user.email===ADMIN_EMAIL){
