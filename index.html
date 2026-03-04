@@ -374,9 +374,34 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
           <button class="rb" data-role="both" onclick="selRole(this)">⚡ Both</button>
         </div>
       </div>
+      <div class="fg" id="companyNameField" style="display:none;">
+        <label>Store / Company Name</label>
+        <input type="text" id="rcompany" placeholder="e.g. Viccy Electronics, My Shop...">
+        <div style="font-size:.75rem;color:var(--muted);margin-top:4px;">This is the name buyers will see on your listings.</div>
+      </div>
       <div class="aerr" id="rerr"></div>
       <button class="bp" onclick="doRegister()">Create Account</button>
     </div>
+  </div>
+</div>
+
+<!-- COMPANY SETUP MODAL -->
+<div class="modal-overlay" id="companyModal">
+  <div class="modal" style="max-width:440px;">
+    <button class="mc" onclick="closeModal('companyModal')">✕</button>
+    <div style="font-size:2.5rem;text-align:center;margin-bottom:12px;">🏪</div>
+    <h2 style="text-align:center;">Set Up Your Store</h2>
+    <p style="text-align:center;">Before you start selling, give your store a name. This is what buyers will see on all your listings.</p>
+    <div class="fg">
+      <label>Store / Company Name</label>
+      <input type="text" id="companyNameInput" placeholder="e.g. Viccy Electronics, TechHub Store..." maxlength="50">
+    </div>
+    <div class="fg">
+      <label>Store Description (optional)</label>
+      <textarea id="companyDescInput" placeholder="Tell buyers a little about what you sell..." style="min-height:64px;"></textarea>
+    </div>
+    <div class="aerr" id="companyErr"></div>
+    <button class="bp" onclick="saveCompanyName()">Save & Start Selling →</button>
   </div>
 </div>
 
@@ -434,45 +459,44 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 </div>
 
 <!-- CHAT PANEL -->
-<div class="cart-sb" id="chatPanel" style="display:none;">
-  <div class="cart-hd">
-    <h3>💬 Messages</h3>
-    <button class="cclose" onclick="toggleChat()">✕</button>
-  </div>
-  
-  <!-- Chat Mode Toggle (Seller/Buyer) -->
-  <div id="chatModeToggle" style="padding:12px 16px;border-bottom:1px solid var(--border);display:none;">
-    <div style="display:flex;gap:6px;background:var(--surface2);border-radius:8px;padding:3px;">
-      <button class="chat-mode-btn active" id="sellerChatBtn" onclick="switchChatMode('seller')" style="flex:1;padding:7px;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;background:var(--surface);transition:all .2s;">
-        As Seller
-      </button>
-      <button class="chat-mode-btn" id="buyerChatBtn" onclick="switchChatMode('buyer')" style="flex:1;padding:7px;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;background:transparent;transition:all .2s;">
-        As Buyer
-      </button>
+<div class="cart-sb" id="chatPanel" style="display:none;flex-direction:column;">
+  <div id="chatListWrap" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+    <div class="cart-hd">
+      <h3>💬 Messages</h3>
+      <button class="cclose" onclick="toggleChat()">✕</button>
     </div>
-  </div>
-  
-  <!-- Chat List -->
-  <div id="chatList" style="flex:1;overflow-y:auto;padding:12px;">
-    <div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:.85rem;">
-      No conversations yet
+    
+    <!-- Chat Mode Toggle (Seller/Buyer) -->
+    <div id="chatModeToggle" style="padding:10px 14px;border-bottom:1px solid var(--border);display:none;">
+      <div style="display:flex;gap:5px;background:var(--surface2);border-radius:8px;padding:3px;">
+        <button id="sellerChatBtn" onclick="switchChatMode('seller')" style="flex:1;padding:7px;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;background:var(--surface);color:var(--text);transition:all .2s;">As Seller</button>
+        <button id="buyerChatBtn" onclick="switchChatMode('buyer')" style="flex:1;padding:7px;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;background:transparent;color:var(--muted);transition:all .2s;">As Buyer</button>
+      </div>
+    </div>
+    
+    <!-- Chat List -->
+    <div id="chatList" style="flex:1;overflow-y:auto;">
+      <div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:.85rem;">No conversations yet</div>
     </div>
   </div>
   
   <!-- Active Chat View -->
   <div id="activeChatView" style="display:none;position:absolute;inset:0;background:var(--surface);flex-direction:column;">
-    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
-      <button onclick="closeActiveChat()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;">←</button>
-      <div style="flex:1;">
-        <div id="activeChatName" style="font-weight:600;font-size:.9rem;"></div>
-        <div id="activeChatProduct" style="font-size:.75rem;color:var(--muted);"></div>
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;">
+      <button onclick="closeActiveChat()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px;">←</button>
+      <div style="flex:1;min-width:0;">
+        <div id="activeChatName" style="font-weight:600;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+        <div id="activeChatProduct" style="font-size:.74rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
       </div>
     </div>
-    <div id="chatMessages" style="flex:1;overflow-y:auto;padding:16px;"></div>
-    <div style="padding:12px;border-top:1px solid var(--border);">
+    <div id="chatMessages" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;"></div>
+    <div style="padding:12px;border-top:1px solid var(--border);flex-shrink:0;">
       <div style="display:flex;gap:8px;">
-        <input type="text" id="chatInput" placeholder="Type a message..." style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem;outline:none;" onkeypress="if(event.key==='Enter')sendChatMessage()">
-        <button onclick="sendChatMessage()" style="padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Send</button>
+        <input type="text" id="chatInput" placeholder="Type a message..." style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem;outline:none;font-family:'DM Sans',sans-serif;" onkeypress="if(event.key==='Enter')sendChatMessage()" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+        <button onclick="sendChatMessage()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:.9rem;">➤</button>
+      </div>
+    </div>
+  </div>
       </div>
     </div>
   </div>
@@ -643,14 +667,23 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
       </div>
     </div>
     <div id="userNav" style="display:none;">
+      <!-- Team Worker Context Pill (shown when user is working for another store) -->
+      <div id="teamContextPill" style="display:none;">
+        <button onclick="toggleTeamPanel()" id="teamPillBtn" style="display:flex;align-items:center;gap:6px;padding:5px 11px;background:linear-gradient(135deg,#1a1714,#3a2010);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600;position:relative;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+          <span id="teamPillIcon">🏪</span>
+          <span id="teamPillName">Store</span>
+          <span style="font-size:.65rem;opacity:.6;">▾</span>
+          <span id="teamPillBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:var(--accent);color:#fff;border-radius:50%;width:16px;height:16px;font-size:.6rem;font-weight:700;display:none;align-items:center;justify-content:center;"></span>
+        </button>
+      </div>
       <div class="ub" id="userMenuBtn" onclick="toggleUserMenu()">
         <div class="av" id="navAv">?</div>
         <span id="navNm">User</span>
         <span>▾</span>
         <div class="dd" id="userDropdown">
           <a href="#" onclick="closeUserMenu();showView('home')">🏠 Browse</a>
-          <a href="#" onclick="closeUserMenu();showSellerDash()">📊 Seller Dashboard</a>
-          <a href="#" onclick="closeUserMenu();showView('addListing')">➕ Add Listing</a>
+          <a href="#" onclick="closeUserMenu();showSellerDash()">📊 My Dashboard</a>
+          <a href="#" onclick="closeUserMenu();startSellingFlow()">➕ Add Listing</a>
           <a href="#" id="adminNavLink" style="display:none;" onclick="closeUserMenu();showView('admin');loadAdminPanel()">🛡️ Admin Panel</a>
           <hr>
           <button onclick="closeUserMenu();logout()">Sign Out</button>
@@ -659,6 +692,55 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
     </div>
   </div>
 </nav>
+
+<!-- TEAM WORKER PANEL (sidebar) -->
+<div id="teamWorkerPanel" style="display:none;position:fixed;top:0;right:0;bottom:0;width:340px;max-width:100vw;background:var(--surface);border-left:1.5px solid var(--border);z-index:300;flex-direction:column;animation:si .3s ease;overflow-y:auto;">
+  <div style="background:linear-gradient(135deg,#1a1714,#3a2010);padding:20px 20px 18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;color:#fff;" id="twpStoreName">Store</div>
+      <button onclick="closeTeamPanel()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;font-size:.85rem;">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;" id="twpInitial">S</div>
+      <div>
+        <div style="font-size:.78rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.07em;">Your Role</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;color:#fff;" id="twpRole">Member</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Company Balance -->
+  <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
+    <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Company Wallet Balance</div>
+    <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;" id="twpCompanyBal">$0.00</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-top:4px;" id="twpCompanyPending"></div>
+    <div style="margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1.5px solid var(--border);">
+      <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Your Withdrawal Limit</div>
+      <div style="display:flex;align-items:baseline;gap:6px;">
+        <div style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:var(--accent);" id="twpMyLimit">$0.00</div>
+        <div style="font-size:.75rem;color:var(--muted);" id="twpLimitPct"></div>
+      </div>
+    </div>
+    <button onclick="openWithdrawModal()" style="width:100%;margin-top:10px;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:.86rem;cursor:pointer;">💸 Request Withdrawal</button>
+  </div>
+  
+  <!-- Tasks / Permissions -->
+  <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
+    <div style="font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">Your Tasks</div>
+    <div id="twpTasks"></div>
+  </div>
+  
+  <!-- Quick Actions -->
+  <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
+    <div style="font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">Quick Actions</div>
+    <div id="twpActions" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+
+  <!-- Switch back -->
+  <div style="padding:16px 20px;">
+    <button onclick="closeTeamPanel();showSellerDash()" style="width:100%;padding:10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:500;cursor:pointer;color:var(--text);">📊 View My Own Dashboard</button>
+  </div>
+</div>
 
 <!-- NOTIFICATION PANEL -->
 <div class="notif-panel" id="notifPanel">
@@ -678,7 +760,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
       <h1>Buy &amp; Sell<br>Anything, <span>Anywhere.</span></h1>
       <p>Cars, gadgets, fashion, books &amp; more — on the most trusted marketplace.</p>
       <div class="hctas">
-        <button class="hcta hcta-p" onclick="showView('addListing')">Start Selling →</button>
+        <button class="hcta hcta-p" onclick="startSellingFlow()">Start Selling →</button>
         <button class="hcta hcta-s" onclick="scrollToProd()">Browse Listings</button>
       </div>
       <div class="hstats">
@@ -1185,9 +1267,10 @@ function renderProducts(list){
     const pr=p.price>=1000?'$'+p.price.toLocaleString():'$'+p.price.toFixed(2);
     const specs=p.isCar&&p.specs?`<div class="cs"><span class="csp">📅 ${p.specs.year}</span><span class="csp">📍 ${p.specs.km}</span><span class="csp">⛽ ${p.specs.fuel}</span><span class="csp">⚙️ ${p.specs.trans}</span></div>`:'';
     const isReal = p.isRealListing;
+    const isOwnProduct = user && isReal && p.sellerUid === user.uid;
     
-    return `<div class="pc" style="${isReal?'border-color:#2d7a4f;border-width:2px;':''}">
-      ${isReal?'<div style="position:absolute;top:8px;left:8px;background:#2d7a4f;color:#fff;padding:3px 8px;border-radius:100px;font-size:.68rem;font-weight:700;z-index:2;">✓ VERIFIED</div>':''}
+    return `<div class="pc" style="${isReal?'border-color:#2d7a4f;border-width:2px;':''}position:relative;">
+      ${isReal?'<div style="position:absolute;top:8px;left:8px;background:#2d7a4f;color:#fff;padding:3px 8px;border-radius:100px;font-size:.68rem;font-weight:700;z-index:2;">✓ LIVE</div>':''}
       <div class="pi" onclick="${isReal?`viewRealProduct('${p.firebaseKey}')`:`openEnq(${p.id})`}" style="cursor:pointer;">
         ${p.badge?`<div class="pbadge ${p.badge==='hot'?'bh':'bn'}">${p.badge==='hot'?'🔥 Hot':'✨ New'}</div>`:''}
         <div class="pw ${wishlist.has(p.id)?'active':''}" onclick="event.stopPropagation();toggleWish(${p.id},this)">♥</div>
@@ -1199,12 +1282,11 @@ function renderProducts(list){
         ${specs}
         <div class="pr"><span class="st">${st}</span>&nbsp;${p.rating} (${p.rev})</div>
         <div class="psel"><div class="sd">${p.seller[0]}</div>${p.seller}</div>
-        <div class="pf">
-          <div class="pp">${pr}</div>
-          <div style="display:flex;gap:4px;">
-            ${isReal?`<button class="ac" style="background:var(--accent);color:#fff;font-size:.72rem;padding:5px 8px;" onclick="event.stopPropagation();startChat('${p.firebaseKey}','${p.sellerUid}','${p.seller}','${p.name}')">💬 Message</button>`:`<button class="ac" style="background:var(--surface2);color:var(--text);border:1.5px solid var(--border);font-size:.72rem;padding:5px 8px;" onclick="openEnq(${p.id})">💬${ec>0?' '+ec:''}</button>`}
-            <button class="ac" onclick="${isReal?`addRealCart('${p.firebaseKey}')`:`addCart(${p.id})`}">${p.isCar?'Enquire':'+ Cart'}</button>
-          </div>
+        <div class="pp" style="margin:6px 0 10px;">${pr}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="ac" style="width:100%;padding:9px;font-size:.84rem;border-radius:8px;" onclick="event.stopPropagation();${isReal?`addRealCart('${p.firebaseKey}')`:`addCart(${p.id})`}">${p.isCar?'🔍 Enquire':'🛒 Add to Cart'}</button>
+          ${isReal && !isOwnProduct ? `<button class="ac" style="width:100%;padding:9px;font-size:.84rem;border-radius:8px;background:var(--surface2);color:var(--text);border:1.5px solid var(--border);" onclick="event.stopPropagation();startChat('${p.firebaseKey}','${p.sellerUid}','${p.seller}','${p.name}')">💬 Message Seller</button>` : ''}
+          ${!isReal ? `<button class="ac" style="width:100%;padding:9px;font-size:.84rem;border-radius:8px;background:var(--surface2);color:var(--text);border:1.5px solid var(--border);" onclick="event.stopPropagation();openEnq(${p.id})">💬 Ask Question${ec>0?' ('+ec+')':''}</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -1500,22 +1582,30 @@ function doLogin(){
   err.textContent='';
   auth.signInWithEmailAndPassword(em,pw).then(c=>{
     return usersRef.child(c.user.uid).once('value').then(s=>{
-      const d=s.val()||{};user={uid:c.user.uid,name:d.name||em.split('@')[0],email:em,role:d.role||'buyer'};
+      const d=s.val()||{};
+      user={uid:c.user.uid,name:d.name||em.split('@')[0],email:em,role:d.role||'buyer',companyName:d.companyName||''};
       updateUserUI();closeModal('authModal');showToast(`👋 Welcome back, ${user.name}!`);
-      loadManagedStores();
-      checkAdminAccess();
+      loadManagedStores();checkAdminAccess();
     });
   }).catch(e=>{err.textContent=e.message;});
 }
 function doRegister(){
-  const nm=document.getElementById('rn').value.trim(),em=document.getElementById('re').value.trim(),pw=document.getElementById('rp').value,role=(document.querySelector('.rb.sel')||{}).dataset?.role||'buyer',err=document.getElementById('rerr');
+  const nm=document.getElementById('rn').value.trim();
+  const em=document.getElementById('re').value.trim();
+  const pw=document.getElementById('rp').value;
+  const role=(document.querySelector('.rb.sel')||{}).dataset?.role||'buyer';
+  const company=document.getElementById('rcompany')?.value.trim()||'';
+  const err=document.getElementById('rerr');
   if(!nm||!em||!pw){err.textContent='Please fill in all fields.';return;}
+  if((role==='seller'||role==='both')&&!company){err.textContent='Please enter your store/company name.';return;}
   err.textContent='';
   auth.createUserWithEmailAndPassword(em,pw).then(c=>{
-    return usersRef.child(c.user.uid).set({name:nm,email:em,role,createdAt:new Date().toISOString()}).then(()=>{
-      user={uid:c.user.uid,name:nm,email:em,role};updateUserUI();closeModal('authModal');showToast(`🎉 Welcome, ${nm}!`);
-      loadManagedStores();
-      checkAdminAccess();
+    const userData={name:nm,email:em,role,createdAt:new Date().toISOString()};
+    if(company) userData.companyName=company;
+    return usersRef.child(c.user.uid).set(userData).then(()=>{
+      user={uid:c.user.uid,name:nm,email:em,role,companyName:company};
+      updateUserUI();closeModal('authModal');showToast(`🎉 Welcome, ${nm}!`);
+      loadManagedStores();checkAdminAccess();
     });
   }).catch(e=>{err.textContent=e.message;});
 }
@@ -1540,6 +1630,160 @@ document.addEventListener('click', e => {
   if (np && nb && !np.contains(e.target) && !nb.contains(e.target)) np.classList.remove('open');
 });
 
+// ── SELLING FLOW ──────────────────────────────────────────────────────────────
+function startSellingFlow() {
+  if (!user) { openModal('authModal'); showToast('🔐 Sign in first'); return; }
+  // Check if user already has a company name
+  if (user.companyName) {
+    showView('addListing');
+    return;
+  }
+  // Need to set company name first
+  openModal('companyModal');
+}
+
+async function saveCompanyName() {
+  const name = document.getElementById('companyNameInput').value.trim();
+  const desc = document.getElementById('companyDescInput').value.trim();
+  const err = document.getElementById('companyErr');
+  if (!name) { err.textContent = 'Please enter your store name.'; return; }
+  if (name.length < 2) { err.textContent = 'Store name must be at least 2 characters.'; return; }
+  err.textContent = '';
+  try {
+    await usersRef.child(user.uid).update({ companyName: name, companyDesc: desc });
+    user.companyName = name;
+    user.companyDesc = desc;
+    closeModal('companyModal');
+    showToast(`🎉 Store "${name}" created!`);
+    showOwnerCompanyPill();
+    showView('addListing');
+    // Update seller name shown in listings
+    const lbl = document.getElementById('listingForLabel');
+    if (lbl) lbl.textContent = `Listing for: ${name}`;
+  } catch(e) {
+    err.textContent = e.message;
+  }
+}
+
+// ── TEAM WORKER PANEL ─────────────────────────────────────────────────────────
+let activeTeamStore = null; // the invite data of the currently active managed store
+
+const ROLE_PERMISSIONS = {
+  owner: {
+    pct: 100,
+    label: '👑 Store Owner',
+    tasks: [
+      { icon: '🏷️', text: 'Add, edit & delete all listings', action: () => startSellingFlow() },
+      { icon: '📦', text: 'View & process all orders', action: () => { showSellerDash(); setTimeout(()=>sdtab('orders',null),300); } },
+      { icon: '👥', text: 'Manage & invite team members', action: () => { showSellerDash(); setTimeout(()=>sdtab('team',null),300); } },
+      { icon: '💬', text: 'View all customer messages', action: () => toggleChat() },
+      { icon: '💰', text: 'Full wallet access — withdraw 100%', action: () => openWithdrawModal() },
+      { icon: '📊', text: 'Full dashboard & analytics', action: () => showSellerDash() }
+    ]
+  },
+  manager: {
+    pct: 25,
+    label: '🧑‍💼 Store Manager',
+    tasks: [
+      { icon: '🏷️', text: 'Add, edit & delete listings', action: () => startSellingFlow() },
+      { icon: '📦', text: 'View & process orders', action: () => { showSellerDash(); setTimeout(()=>sdtab('orders',null),300); } },
+      { icon: '👥', text: 'Manage team members', action: () => { showSellerDash(); setTimeout(()=>sdtab('team',null),300); } },
+      { icon: '💬', text: 'Reply to customer messages', action: () => toggleChat() },
+      { icon: '💰', text: 'Withdraw up to 25% of balance', action: () => openWithdrawModal() }
+    ]
+  },
+  listings: {
+    pct: 15,
+    label: '🏷️ Listings Handler',
+    tasks: [
+      { icon: '➕', text: 'Add new product listings', action: () => startSellingFlow() },
+      { icon: '✏️', text: 'Edit existing listings', action: () => { showSellerDash(); setTimeout(()=>sdtab('listings',null),300); } },
+      { icon: '💰', text: 'Withdraw up to 15% of balance', action: () => openWithdrawModal() }
+    ]
+  },
+  orders: {
+    pct: 10,
+    label: '📦 Order Handler',
+    tasks: [
+      { icon: '📋', text: 'View all orders', action: () => { showSellerDash(); setTimeout(()=>sdtab('orders',null),300); } },
+      { icon: '📦', text: 'Process & update order status', action: () => { showSellerDash(); setTimeout(()=>sdtab('orders',null),300); } },
+      { icon: '💰', text: 'Withdraw up to 10% of balance', action: () => openWithdrawModal() }
+    ]
+  },
+  support: {
+    pct: 5,
+    label: '💬 Customer Support',
+    tasks: [
+      { icon: '💬', text: 'Reply to buyer messages', action: () => toggleChat() },
+      { icon: '💰', text: 'Withdraw up to 5% of balance', action: () => openWithdrawModal() }
+    ]
+  }
+};
+
+function toggleTeamPanel() {
+  const panel = document.getElementById('teamWorkerPanel');
+  const isOpen = panel.style.display === 'flex';
+  if (isOpen) { closeTeamPanel(); } else { openTeamPanel(); }
+}
+
+function openTeamPanel() {
+  if (!activeTeamStore) return;
+  const panel = document.getElementById('teamWorkerPanel');
+  panel.style.display = 'flex';
+  
+  const inv = activeTeamStore;
+  const roleKey = inv.isOwner ? 'owner' : (inv.role || 'support');
+  const perms = ROLE_PERMISSIONS[roleKey] || ROLE_PERMISSIONS.support;
+  
+  // Header
+  const storeName = inv.isOwner ? (user.companyName || user.name + "'s Store") : inv.sellerName + "'s Store";
+  document.getElementById('twpStoreName').textContent = storeName;
+  document.getElementById('twpInitial').textContent = storeName[0].toUpperCase();
+  document.getElementById('twpRole').textContent = inv.isOwner ? '👑 Store Owner' : perms.label;
+  
+  // Load wallet (owner = their own wallet, member = the store owner's wallet)
+  const walletUid = inv.isOwner ? user.uid : inv.sellerUid;
+  db.ref('tradex_wallets/' + walletUid).on('value', snap => {
+    const w = snap.val() || { balance: 0, pending: 0, totalEarned: 0 };
+    const bal = w.balance || 0;
+    const myLimit = inv.isOwner ? bal : bal * (perms.pct / 100);
+    
+    document.getElementById('twpCompanyBal').textContent = '$' + bal.toFixed(2);
+    document.getElementById('twpCompanyPending').textContent = `Total Earned: $${(w.totalEarned||0).toFixed(2)} · Pending: $${(w.pending||0).toFixed(2)}`;
+    document.getElementById('twpMyLimit').textContent = '$' + myLimit.toFixed(2);
+    document.getElementById('twpLimitPct').textContent = inv.isOwner ? '(Full access — 100%)' : `(${perms.pct}% of company balance)`;
+  });
+  
+  // Tasks
+  document.getElementById('twpTasks').innerHTML = perms.tasks.map(t => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--border);margin-bottom:7px;">
+      <span style="font-size:1.05rem;">${t.icon}</span>
+      <span style="font-size:.83rem;flex:1;color:var(--text);">${t.text}</span>
+      <span style="color:var(--green);font-size:.75rem;font-weight:700;">✓</span>
+    </div>`).join('');
+  
+  // Quick action buttons
+  document.getElementById('twpActions').innerHTML = perms.tasks.map(t => `
+    <button onclick="(${t.action.toString()})();closeTeamPanel();" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;text-align:left;width:100%;font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:500;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <span style="font-size:1rem;">${t.icon}</span><span>${t.text}</span>
+    </button>`).join('');
+}
+
+function closeTeamPanel() {
+  document.getElementById('teamWorkerPanel').style.display = 'none';
+}
+
+// Show team context pill when user has accepted invites
+function showTeamContextPill(inv) {
+  activeTeamStore = inv;
+  const pill = document.getElementById('teamContextPill');
+  const pillName = document.getElementById('teamPillName');
+  if (pill && pillName) {
+    pillName.textContent = inv.sellerName + "'s Store";
+    pill.style.display = 'flex';
+  }
+}
+
 function updateUserUI(){
   const ini=user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('navAv').textContent=ini;
@@ -1547,7 +1791,6 @@ function updateUserUI(){
   document.getElementById('guestNav').style.display='none';
   document.getElementById('userNav').style.display='flex';
   
-  // Hide seller features from admin
   if(user.email===ADMIN_EMAIL){
     const sellerLinks=document.querySelectorAll('#userNav a[onclick*="showSellerDash"], #userNav a[onclick*="addListing"]');
     sellerLinks.forEach(link=>link.style.display='none');
@@ -1556,13 +1799,33 @@ function updateUserUI(){
     showView('admin');
     loadAdminPanel();
   } else {
-    const sellerLinks=document.querySelectorAll('#userNav a[onclick*="showSellerDash"], #userNav a[onclick*="addListing"]');
+    const sellerLinks=document.querySelectorAll('#userNav a[onclick*="showSellerDash"], #userNav a[onclick*="startSellingFlow"]');
     sellerLinks.forEach(link=>link.style.display='block');
     const cartBtn=document.getElementById('cartButton');
     if(cartBtn)cartBtn.style.display='block';
+    // Show owner company pill if they have a company name
+    if (user.companyName) showOwnerCompanyPill();
   }
-  // Start listening for notifications
   loadNotifications();
+}
+
+function showOwnerCompanyPill() {
+  // Set up the pill for the store owner (100% access)
+  activeTeamStore = {
+    sellerUid: user.uid,
+    sellerName: user.companyName || user.name,
+    role: 'owner',
+    roleLabel: '👑 Store Owner',
+    isOwner: true
+  };
+  const pill = document.getElementById('teamContextPill');
+  const pillName = document.getElementById('teamPillName');
+  const pillIcon = document.getElementById('teamPillIcon');
+  if (pill && pillName) {
+    pillName.textContent = user.companyName || 'My Store';
+    if (pillIcon) pillIcon.textContent = '🏪';
+    pill.style.display = 'flex';
+  }
 }
 
 function showSellerDash(){
@@ -1779,8 +2042,12 @@ function acceptInvite(inviteKey, e) {
     // Remove the invite item from UI
     const el = document.getElementById('notif-' + inviteKey);
     if (el) el.remove();
+    // Show team context pill immediately
+    showTeamContextPill({...inv, key: inviteKey});
     showToast(`✅ You joined ${inv.sellerName}'s store as ${inv.roleLabel}!`);
     loadManagedStores();
+    // Auto-open the team panel
+    setTimeout(() => openTeamPanel(), 400);
   });
 }
 
@@ -1797,10 +2064,12 @@ function declineInvite(inviteKey, e) {
 function logout(){
   if (notifListener) { db.ref('tradex_notifications/' + (user?.uid||'')).off(); notifListener = null; }
   auth.signOut().then(()=>{
-    user=null;
+    user=null; activeTeamStore=null;
     document.getElementById('guestNav').style.display='flex';
     document.getElementById('userNav').style.display='none';
     document.getElementById('notifBadge').style.display='none';
+    document.getElementById('teamContextPill').style.display='none';
+    document.getElementById('teamWorkerPanel').style.display='none';
     const cartBtn=document.getElementById('cartButton');
     if(cartBtn)cartBtn.style.display='block';
     document.getElementById('notifPanel').classList.remove('open');
@@ -1809,7 +2078,13 @@ function logout(){
     showToast('👋 Signed out');
   });
 }
-function selRole(btn){document.querySelectorAll('.rb').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}
+function selRole(btn){
+  document.querySelectorAll('.rb').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  const role = btn.dataset.role;
+  const cf = document.getElementById('companyNameField');
+  if (cf) cf.style.display = (role === 'seller' || role === 'both') ? 'block' : 'none';
+}
 function switchAuthTab(t){document.getElementById('loginForm').style.display=t==='login'?'block':'none';document.getElementById('registerForm').style.display=t==='register'?'block':'none';document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='register')));}
 
 // ── ENQUIRIES ─────────────────────────────────────────────────────────────────
@@ -1854,20 +2129,24 @@ function sendEnq(){
 }
 
 // ── CHAT SYSTEM ───────────────────────────────────────────────────────────────
-let currentChatMode = 'seller'; // 'seller' or 'buyer'
+let currentChatMode = 'seller';
 let activeChat = null;
 let userChats = [];
+let activeChatListener = null;
+
+function openChatPanel() {
+  const panel = document.getElementById('chatPanel');
+  panel.style.display = 'flex';
+  document.getElementById('cartSb').classList.remove('open');
+  loadChats();
+}
 
 function toggleChat() {
   const panel = document.getElementById('chatPanel');
-  const isOpen = panel.style.display === 'flex';
-  
-  if (isOpen) {
+  if (panel.style.display === 'flex') {
     panel.style.display = 'none';
   } else {
-    document.getElementById('cartSb').classList.remove('open');
-    panel.style.display = 'flex';
-    loadChats();
+    openChatPanel();
   }
 }
 
@@ -1984,12 +2263,12 @@ function openChat(chatKey) {
       currentChatMode === 'seller' ? chat.buyerName : chat.sellerName;
     document.getElementById('activeChatProduct').textContent = chat.productTitle || '';
     
-    document.getElementById('chatList').parentElement.style.display = 'none';
+    const listWrap = document.getElementById('chatListWrap');
+    if (listWrap) listWrap.style.display = 'none';
     document.getElementById('activeChatView').style.display = 'flex';
     
     loadChatMessages(chatKey);
     
-    // Mark as read
     if (currentChatMode === 'seller') {
       db.ref('tradex_chats/' + chatKey).update({ unreadCount: 0 });
     }
@@ -1997,8 +2276,15 @@ function openChat(chatKey) {
 }
 
 function loadChatMessages(chatKey) {
+  // Detach old listener
+  if (activeChatListener) {
+    db.ref('tradex_messages/' + activeChatListener).off();
+  }
+  activeChatListener = chatKey;
+  
   db.ref('tradex_messages/' + chatKey).on('value', snap => {
     const messagesDiv = document.getElementById('chatMessages');
+    if (!messagesDiv) return;
     const messages = [];
     
     if (snap.exists()) {
@@ -2008,20 +2294,18 @@ function loadChatMessages(chatKey) {
     messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
     if (!messages.length) {
-      messagesDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:.85rem;">No messages yet. Start the conversation!</div>';
+      messagesDiv.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:.85rem;">Say hello! 👋</div>';
       return;
     }
     
     messagesDiv.innerHTML = messages.map(msg => {
       const isMe = msg.senderUid === user.uid;
-      return `
-        <div style="display:flex;justify-content:${isMe ? 'flex-end' : 'flex-start'};margin-bottom:12px;">
-          <div style="max-width:75%;background:${isMe ? 'var(--accent)' : 'var(--surface2)'};color:${isMe ? '#fff' : 'var(--text)'};padding:10px 14px;border-radius:12px;">
-            <div style="font-size:.88rem;margin-bottom:4px;">${msg.message}</div>
-            <div style="font-size:.7rem;opacity:.7;">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-          </div>
+      return `<div style="display:flex;justify-content:${isMe?'flex-end':'flex-start'};margin-bottom:10px;">
+        <div style="max-width:78%;background:${isMe?'var(--accent)':'var(--surface2)'};color:${isMe?'#fff':'var(--text)'};padding:10px 13px;border-radius:${isMe?'14px 14px 4px 14px':'14px 14px 14px 4px'};">
+          <div style="font-size:.87rem;line-height:1.4;">${msg.message}</div>
+          <div style="font-size:.68rem;opacity:.6;margin-top:3px;text-align:right;">${new Date(msg.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
         </div>
-      `;
+      </div>`;
     }).join('');
     
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -2055,8 +2339,11 @@ function sendChatMessage() {
 
 function closeActiveChat() {
   document.getElementById('activeChatView').style.display = 'none';
-  document.getElementById('chatList').parentElement.style.display = 'block';
+  const listWrap = document.getElementById('chatListWrap');
+  if (listWrap) listWrap.style.display = 'flex';
   activeChat = null;
+  // Detach message listener
+  if (activeChatListener) { db.ref('tradex_messages/' + (activeChat?.key||'x')).off(); activeChatListener = null; }
 }
 
 // Start chat from product
@@ -2072,17 +2359,16 @@ function startChat(productId, sellerUid, sellerName, productTitle) {
     return;
   }
   
-  // Check if chat already exists
   const chatId = `${user.uid}_${sellerUid}_${productId}`;
+  
+  // Open panel first, then load the chat
+  openChatPanel();
+  switchChatMode('buyer');
   
   db.ref('tradex_chats/' + chatId).once('value').then(snap => {
     if (snap.exists()) {
-      // Open existing chat
-      toggleChat();
-      switchChatMode('buyer');
-      setTimeout(() => openChat(chatId), 300);
+      setTimeout(() => openChat(chatId), 200);
     } else {
-      // Create new chat
       const newChat = {
         buyerUid: user.uid,
         buyerName: user.name,
@@ -2093,11 +2379,8 @@ function startChat(productId, sellerUid, sellerName, productTitle) {
         createdAt: new Date().toISOString(),
         unreadCount: 0
       };
-      
       db.ref('tradex_chats/' + chatId).set(newChat).then(() => {
-        toggleChat();
-        switchChatMode('buyer');
-        setTimeout(() => openChat(chatId), 300);
+        setTimeout(() => openChat(chatId), 200);
         showToast('💬 Chat started with ' + sellerName);
       });
     }
@@ -2418,22 +2701,17 @@ async function sendAgentInvite() {
 function loadManagedStores() {
   if (!user) return;
   const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
-  db.ref(`tradex_agent_lookup/${emailKey}`).once('value').then(snap => {
+  db.ref(`tradex_agent_lookup/${emailKey}`).on('value', snap => {
     if (!snap.exists()) return;
     const stores = [];
     snap.forEach(c => {
       const inv = c.val();
-      if (inv && inv.status !== 'rejected') stores.push(inv);
+      if (inv && inv.status === 'accepted') stores.push({...inv, key: c.key});
     });
     if (!stores.length) return;
     renderManagedStores(stores);
-    // Accept all pending invites automatically on login
-    stores.forEach(s => {
-      if (s.status === 'pending') {
-        db.ref(`tradex_invites/${s.sellerUid}/${s.inviteId}`).update({ status: 'accepted', acceptedAt: new Date().toISOString() });
-        db.ref(`tradex_agent_lookup/${emailKey}/${s.inviteId}`).update({ status: 'accepted' });
-      }
-    });
+    // Show the team pill for the first (most recent) accepted store
+    if (stores.length > 0) showTeamContextPill(stores[0]);
   });
 }
 
