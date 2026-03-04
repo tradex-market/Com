@@ -858,16 +858,31 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
     </div>
 
     <div class="lform">
-      <!-- IMAGE UPLOAD -->
+      <!-- IMAGE URLs -->
       <div>
-        <div class="iu" id="imgUploadBox">
-          <input type="file" id="imgFileInput" accept="image/*" multiple onchange="handleImageSelect(event)">
-          <div class="iu-i">📷</div>
-          <p><strong>Click or drag</strong> to upload product photos</p>
-          <p style="margin-top:4px;font-size:.74rem;">JPG, PNG, WEBP — up to 5MB each · Max 5 images</p>
+        <div class="fg">
+          <label>Product Images (URLs)</label>
+          <input type="text" id="imgUrl1" placeholder="https://example.com/image1.jpg">
         </div>
-        <div class="upload-prog" id="uploadProg"><div class="upload-prog-bar" id="uploadProgBar"></div></div>
-        <div class="img-previews" id="imgPreviews"></div>
+        <div class="fg">
+          <label>Image 2 (Optional)</label>
+          <input type="text" id="imgUrl2" placeholder="https://example.com/image2.jpg">
+        </div>
+        <div class="fg">
+          <label>Image 3 (Optional)</label>
+          <input type="text" id="imgUrl3" placeholder="https://example.com/image3.jpg">
+        </div>
+        <div class="fg">
+          <label>Image 4 (Optional)</label>
+          <input type="text" id="imgUrl4" placeholder="https://example.com/image4.jpg">
+        </div>
+        <div class="fg">
+          <label>Image 5 (Optional)</label>
+          <input type="text" id="imgUrl5" placeholder="https://example.com/image5.jpg">
+        </div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:-8px;margin-bottom:12px;">
+          💡 Tip: Upload images to imgur.com, postimages.org, or imgbb.com and paste the direct image links here
+        </div>
       </div>
 
       <div class="fg"><label>Title</label><input type="text" id="lTitle" placeholder="e.g. iPhone 15 Pro — 256GB, Black"></div>
@@ -1406,81 +1421,8 @@ function sendEnq(){
   },1300);
 }
 
-// ── IMAGE UPLOAD ──────────────────────────────────────────────────────────────
-let selectedImages = []; // {file, previewUrl}
-let uploadedImageUrls = []; // final Firebase URLs
+// ── IMAGE UPLOAD (Using URLs - No Firebase Storage Required) ─────────────────
 let listingForStore = null; // {uid, name, role} if agent listing for another store
-
-function handleImageSelect(e) {
-  const files = Array.from(e.target.files);
-  if (!files.length) return;
-  
-  if (selectedImages.length + files.length > 5) { 
-    showToast('⚠️ Max 5 images allowed'); 
-    return; 
-  }
-  
-  files.forEach(f => {
-    if (!f.type.startsWith('image/')) {
-      showToast(`⚠️ ${f.name} is not an image file`);
-      return;
-    }
-    if (f.size > 5 * 1024 * 1024) { 
-      showToast(`⚠️ ${f.name} is over 5MB`); 
-      return; 
-    }
-    
-    const reader = new FileReader();
-    reader.onload = ev => {
-      selectedImages.push({ file: f, previewUrl: ev.target.result });
-      renderPreviews();
-    };
-    reader.onerror = () => {
-      showToast(`⚠️ Error reading ${f.name}`);
-    };
-    reader.readAsDataURL(f);
-  });
-  e.target.value = '';
-}
-
-function renderPreviews() {
-  const wrap = document.getElementById('imgPreviews');
-  if (!wrap) return;
-  
-  if (!selectedImages.length) {
-    wrap.innerHTML = '';
-    return;
-  }
-  
-  wrap.innerHTML = selectedImages.map((img, i) => `
-    <div class="img-thumb-wrap">
-      <img class="img-thumb" src="${img.previewUrl}" alt="preview ${i+1}">
-      <button class="img-rm" onclick="removeImg(${i})" title="Remove image">✕</button>
-    </div>`).join('');
-}
-
-function removeImg(i) {
-  selectedImages.splice(i, 1);
-  renderPreviews();
-}
-
-async function uploadImagesToFirebase() {
-  uploadedImageUrls = [];
-  if (!selectedImages.length) return [];
-  const prog = document.getElementById('uploadProg');
-  const bar = document.getElementById('uploadProgBar');
-  prog.style.display = 'block'; bar.style.width = '0%';
-  for (let i = 0; i < selectedImages.length; i++) {
-    const img = selectedImages[i];
-    const ref = storage.ref(`tradex_listings/${Date.now()}_${img.file.name}`);
-    const snap = await ref.put(img.file);
-    const url = await snap.ref.getDownloadURL();
-    uploadedImageUrls.push(url);
-    bar.style.width = ((i + 1) / selectedImages.length * 100) + '%';
-  }
-  setTimeout(() => { prog.style.display = 'none'; bar.style.width = '0%'; }, 600);
-  return uploadedImageUrls;
-}
 
 async function submitListing() {
   if (!user) { openModal('authModal'); showToast('🔐 Sign in to list items'); return; }
@@ -1488,11 +1430,20 @@ async function submitListing() {
   const price = parseFloat(document.getElementById('lPrice').value);
   if (!title) { showToast('⚠️ Please add a title'); return; }
   if (!price || price <= 0) { showToast('⚠️ Please add a valid price'); return; }
+  
   const btn = document.getElementById('publishBtn');
-  btn.textContent = selectedImages.length ? 'Uploading images...' : 'Publishing...';
+  const originalText = btn.textContent;
   btn.disabled = true;
+  btn.textContent = 'Publishing listing...';
+  
   try {
-    const imgUrls = await uploadImagesToFirebase();
+    // Collect image URLs from inputs
+    const imgUrls = [];
+    for (let i = 1; i <= 5; i++) {
+      const url = document.getElementById('imgUrl' + i)?.value.trim();
+      if (url) imgUrls.push(url);
+    }
+    
     const ownerUid = listingForStore ? listingForStore.uid : user.uid;
     const ownerName = listingForStore ? listingForStore.name : user.name;
     const listing = {
@@ -1513,18 +1464,25 @@ async function submitListing() {
       createdAt: new Date().toISOString(),
       status: 'active'
     };
+    
     await db.ref('tradex_listings').push(listing);
     showToast('🎉 Listing published successfully!');
+    
     // Reset form
-    selectedImages = []; uploadedImageUrls = [];
-    renderPreviews();
-    ['lTitle','lPrice','lDesc','lLoc'].forEach(id => document.getElementById(id).value = '');
+    ['lTitle','lPrice','lDesc','lLoc','imgUrl1','imgUrl2','imgUrl3','imgUrl4','imgUrl5'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
     document.getElementById('lQty').value = '1';
-    btn.textContent = 'Publish Listing →'; btn.disabled = false;
+    btn.textContent = originalText;
+    btn.disabled = false;
+    
     setTimeout(() => showView('home'), 900);
   } catch (err) {
+    console.error('Listing error:', err);
     showToast('❌ Error: ' + err.message);
-    btn.textContent = 'Publish Listing →'; btn.disabled = false;
+    btn.textContent = originalText;
+    btn.disabled = false;
   }
 }
 
