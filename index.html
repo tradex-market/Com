@@ -679,12 +679,12 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 <nav>
   <a href="#" class="logo" onclick="showView('home')">trade<span>x</span></a>
   <div class="ns">
-    <input type="text" placeholder="Search listings..." onkeyup="handleSearch(event)">
+    <input type="text" id="searchInput" placeholder="Search listings..." onkeyup="handleSearch(event)">
     <select>
       <option>All</option><option>Electronics</option><option>Fashion</option>
       <option>Home</option><option>Sports</option><option>Cars</option><option>Books</option>
     </select>
-    <button onclick="showToast('🔍 Searching...')">⌕</button>
+    <button onclick="doSearch()">⌕</button>
   </div>
   <div class="na">
     <button class="cb" id="chatButton" onclick="toggleChat()" style="position:relative;">
@@ -851,8 +851,9 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
       <div class="dt">Seller Dashboard</div>
       <div class="dtabs">
         <button class="dtab active" onclick="sdtab('overview',this)">Overview</button>
-        <button class="dtab" onclick="sdtab('listings',this)">Listings</button>
+        <button class="dtab" onclick="sdtab('listings',this)">My Listings</button>
         <button class="dtab" onclick="sdtab('orders',this)">Orders</button>
+        <button class="dtab" onclick="sdtab('purchases',this)">My Purchases</button>
         <button class="dtab" onclick="sdtab('team',this)">Team</button>
         <button class="dtab" onclick="sdtab('wallet',this)">💰 Wallet</button>
       </div>
@@ -869,20 +870,15 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
         <button onclick="sdtab('wallet',null)" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-size:.86rem;font-weight:700;cursor:pointer;white-space:nowrap;">💸 Withdraw Funds</button>
       </div>
       <div class="sr">
-        <div class="scard"><div class="scn">$2,841</div><div class="scl">Revenue</div><div class="scd">↑ 14% this month</div></div>
-        <div class="scard"><div class="scn">34</div><div class="scl">Active Listings</div><div class="scd">↑ 3 this week</div></div>
-        <div class="scard"><div class="scn">128</div><div class="scl">Orders</div><div class="scd">↑ 22% vs last month</div></div>
-        <div class="scard"><div class="scn">4.9⭐</div><div class="scl">Rating</div><div class="scd">97 reviews</div></div>
-        <div class="scard"><div class="scn" id="tcnt">3</div><div class="scl">Team Members</div><div class="scd">2 online now</div></div>
+        <div class="scard"><div class="scn" id="overviewRevenue">$0</div><div class="scl">Revenue</div><div class="scd">From approved orders</div></div>
+        <div class="scard"><div class="scn" id="overviewListingCount">0</div><div class="scl">Active Listings</div><div class="scd">Your live products</div></div>
+        <div class="scard"><div class="scn" id="overviewOrderCount">0</div><div class="scl">Orders</div><div class="scd">All time</div></div>
+        <div class="scard"><div class="scn" id="tcnt">0</div><div class="scl">Team Members</div><div class="scd">Active staff</div></div>
       </div>
       <div class="pg2">
         <div class="pb">
-          <div class="pbt">Recent Orders <a href="#" onclick="sdtab('orders',null)">View all</a></div>
-          <div class="ol">
-            <div class="or"><div class="oi">🎧</div><div class="oin"><div class="oname">Wireless Earbuds Pro</div><div class="ometa">Alex M. · 2 mins ago</div></div><div class="oprice">$49.99</div></div>
-            <div class="or"><div class="oi">👟</div><div class="oin"><div class="oname">Nike Air Max 90</div><div class="ometa">Sara K. · 1 hr ago</div></div><div class="oprice">$95.00</div></div>
-            <div class="or"><div class="oi">🚗</div><div class="oin"><div class="oname">2020 Toyota Camry SE</div><div class="ometa">Chris P. · 3 hrs ago</div></div><div class="oprice">$18,500</div></div>
-          </div>
+          <div class="pbt">Recent Orders <a href="#" onclick="sdtab('orders',null)">View all →</a></div>
+          <div id="overviewRecentOrders"><div style="color:var(--muted);font-size:.84rem;padding:16px 0;text-align:center;">Loading...</div></div>
         </div>
         <div class="pb">
           <div class="pbt">Team Members <a href="#" onclick="sdtab('team',null)">Manage</a></div>
@@ -904,15 +900,21 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
     </div>
 
     <div id="sd-orders" style="display:none;">
-      <div class="pb">
-        <div class="pbt">All Orders</div>
-        <div class="ol">
-          <div class="or"><div class="oi">🎧</div><div class="oin"><div class="oname">Wireless Earbuds × 2</div><div class="ometa">Order #1042 · Alex M. · Awaiting Shipment</div></div><div><div class="oprice">$99.98</div><span class="ls lsp" style="font-size:.67rem;">Pending</span></div></div>
-          <div class="or"><div class="oi">👟</div><div class="oin"><div class="oname">Nike Air Max 90</div><div class="ometa">Order #1041 · Sara K. · Shipped</div></div><div><div class="oprice">$95.00</div><span class="ls lsa" style="font-size:.67rem;">Shipped</span></div></div>
-          <div class="or"><div class="oi">🚗</div><div class="oin"><div class="oname">2020 Toyota Camry SE</div><div class="ometa">Order #1040 · Chris P. · Awaiting Payment</div></div><div><div class="oprice">$18,500</div><span class="ls lsp" style="font-size:.67rem;">Pending</span></div></div>
-          <div class="or"><div class="oi">📚</div><div class="oin"><div class="oname">Atomic Habits</div><div class="ometa">Order #1039 · Emma R. · Delivered</div></div><div><div class="oprice">$18.00</div><span class="ls lss" style="font-size:.67rem;">Done</span></div></div>
-        </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-weight:600;font-size:.91rem;">Orders for Your Listings</div>
       </div>
+      <div id="sellerOrdersList"></div>
+    </div>
+
+    <div id="sd-purchases" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;">My Purchases</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:2px;">Track all orders you've placed as a buyer</div>
+        </div>
+        <button class="bp" style="width:auto;padding:8px 16px;font-size:.83rem;" onclick="showView('home')">+ Shop More</button>
+      </div>
+      <div id="myPurchasesList"></div>
     </div>
 
     <div id="sd-team" style="display:none;">
@@ -1024,6 +1026,22 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
     </div>
 
     <div style="padding:28px 32px;">
+      <!-- Platform Live Stats -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:20px;">
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px;">
+          <div style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:#a78bfa;" id="adminUserCount">—</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;">👤 Users</div>
+        </div>
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px;">
+          <div style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:#fb923c;" id="adminListingCount">—</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;">🏷️ Listings</div>
+        </div>
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px;">
+          <div style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:#34d399;" id="adminOrderCount">—</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;">📦 Orders</div>
+        </div>
+      </div>
+
       <!-- Admin Stats -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:28px;">
         <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:18px;">
@@ -1380,16 +1398,15 @@ function fcat(cat,el){
   scrollToProd();
 }
 function scrollToProd(){document.getElementById('prodSec').scrollIntoView({behavior:'smooth'});}
-function handleSearch(e){
-  if(e.key==='Enter'){
-    const q = document.getElementById('searchInput')?.value.trim().toLowerCase() || document.querySelector('.ns input')?.value.trim().toLowerCase() || '';
-    if(!q){renderProducts(allProductsCache);return;}
-    const results = allProductsCache.filter(p=>p.name.toLowerCase().includes(q)||p.catL.toLowerCase().includes(q)||(p.seller||'').toLowerCase().includes(q));
-    renderProducts(results);
-    document.getElementById('prodTitle').textContent = `Results for "${q}"`;
-    scrollToProd();
-  }
+function doSearch(){
+  const q=(document.getElementById('searchInput')?.value||document.querySelector('.ns input')?.value||'').trim().toLowerCase();
+  if(!q){renderProducts(allProductsCache);document.getElementById('prodTitle').textContent='Featured Listings';scrollToProd();return;}
+  const results=allProductsCache.filter(p=>p.name.toLowerCase().includes(q)||p.catL.toLowerCase().includes(q)||(p.seller||'').toLowerCase().includes(q));
+  renderProducts(results);
+  document.getElementById('prodTitle').textContent=`Results for "${q}"`;
+  scrollToProd();
 }
+function handleSearch(e){if(e.key==='Enter')doSearch();}
 
 // ── CART ──────────────────────────────────────────────────────────────────────
 function addCart(id){
@@ -1886,8 +1903,8 @@ function showSellerDash(){
     if(op)op.textContent='Pending withdrawal: $'+(w.pending||0).toFixed(2);
   });
   loadSellerListings();
-  // Load real team from Firebase
   loadFirebaseTeam();
+  loadOverviewStats();
 }
 
 // Load real team members from Firebase
@@ -2861,17 +2878,20 @@ function exitManagedStore() {
 
 // ── DASH TABS ─────────────────────────────────────────────────────────────────
 function sdtab(tab,btn){
-  ['overview','listings','orders','team','wallet'].forEach(t=>{
+  ['overview','listings','orders','purchases','team','wallet'].forEach(t=>{
     const el=document.getElementById('sd-'+t);
     if(el)el.style.display=t===tab?'block':'none';
   });
   if(btn){document.querySelectorAll('.dtab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
   else document.querySelectorAll('.dtab').forEach((b,i)=>{
-    const ts=['overview','listings','orders','team','wallet'];
+    const ts=['overview','listings','orders','purchases','team','wallet'];
     b.classList.toggle('active',ts[i]===tab);
   });
   if(tab==='team')renderAgents();
   if(tab==='wallet')loadWallet();
+  if(tab==='orders')loadSellerOrders();
+  if(tab==='purchases')loadMyPurchases();
+  if(tab==='overview')loadOverviewStats();
 }
 
 // ── WALLET ────────────────────────────────────────────────────────────────────
@@ -2964,89 +2984,233 @@ async function submitWithdraw(){
   if(!accName){err.textContent='Please enter the account name.';return;}
   if(!amount||amount<=0){err.textContent='Please enter a valid amount.';return;}
   
-  // Check balance
+  // Get current balance
   const wSnap=await db.ref('tradex_wallets/'+user.uid).once('value');
   const bal=(wSnap.val()||{}).balance||0;
   
-  // Check if user is an agent managing a store
-  let maxWithdrawPercent = 1.0; // Default: 100% for account owners
-  let isAgent = false;
+  if(amount>bal){err.textContent=`Insufficient balance. Available: $${bal.toFixed(2)}`;return;}
+  
+  // Owner check: if user has a company name or has listings, they are an owner — full 100%
+  // Agent limit only applies if they are purely a team member with no own store
+  const userSnap = await db.ref('tradex_users/'+user.uid).once('value');
+  const userData = userSnap.val()||{};
+  const isOwner = !!(userData.companyName || userData.role === 'seller' || userData.role === 'both');
+  
+  let maxPercent = 1.0; // 100% default
   let agentRole = '';
+  let isAgentOnly = false;
   
-  // Check if user is working as an agent for someone else's store
-  const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
-  const agentLookup = await db.ref(`tradex_agent_lookup/${emailKey}`).once('value');
-  
-  if (agentLookup.exists()) {
-    // User is an agent - determine their role and withdrawal limit
-    let roleLimit = 0;
-    agentLookup.forEach(inv => {
-      const invite = inv.val();
-      if (invite && invite.status === 'accepted') {
-        isAgent = true;
-        agentRole = invite.role;
-        // Set withdrawal percentage based on role
-        if (invite.role === 'manager') {
-          roleLimit = Math.max(roleLimit, 0.25); // 25%
-        } else if (invite.role === 'listings') {
-          roleLimit = Math.max(roleLimit, 0.15); // 15%
-        } else if (invite.role === 'orders') {
-          roleLimit = Math.max(roleLimit, 0.10); // 10%
-        } else if (invite.role === 'support') {
-          roleLimit = Math.max(roleLimit, 0.05); // 5%
+  if (!isOwner) {
+    // Check if they have any accepted agent invites
+    const emailKey = user.email.replace(/\./g,'_').replace(/@/g,'__at__');
+    const agentLookup = await db.ref(`tradex_agent_lookup/${emailKey}`).once('value');
+    if (agentLookup.exists()) {
+      let roleLimit = 0;
+      agentLookup.forEach(inv => {
+        const invite = inv.val();
+        if (invite && invite.status === 'accepted') {
+          isAgentOnly = true;
+          agentRole = invite.role;
+          const pcts = {manager:0.25, listings:0.15, orders:0.10, support:0.05};
+          roleLimit = Math.max(roleLimit, pcts[invite.role]||0.05);
         }
-      }
-    });
-    maxWithdrawPercent = roleLimit;
+      });
+      if (isAgentOnly) maxPercent = roleLimit;
+    }
   }
   
-  // Calculate maximum allowed withdrawal
-  const maxAllowedAmount = bal * maxWithdrawPercent;
-  
-  if (amount > maxAllowedAmount) {
-    if (isAgent) {
-      const roleNames = {manager:'Store Manager',listings:'Listings Handler',orders:'Order Handler',support:'Customer Support'};
-      const roleName = roleNames[agentRole] || agentRole;
-      err.textContent=`As a ${roleName}, you can withdraw up to ${(maxWithdrawPercent*100)}% of earnings. Maximum: $${maxAllowedAmount.toFixed(2)}`;
-    } else {
-      err.textContent=`Insufficient balance. Available: $${bal.toFixed(2)}`;
-    }
+  const maxAllowed = bal * maxPercent;
+  if (amount > maxAllowed) {
+    const roleNames = {manager:'Store Manager',listings:'Listings Handler',orders:'Order Handler',support:'Customer Support'};
+    err.textContent = isAgentOnly
+      ? `As ${roleNames[agentRole]||'team member'}, your limit is ${Math.round(maxPercent*100)}% = $${maxAllowed.toFixed(2)}`
+      : `Insufficient balance. Available: $${bal.toFixed(2)}`;
     return;
   }
   
-  if(amount>bal){err.textContent=`Insufficient balance. Available: $${bal.toFixed(2)}`;return;}
-  
   const btn=document.getElementById('wSubmitBtn');
   btn.textContent='Submitting...';btn.disabled=true;
+  
   const req={
-    sellerUid:user.uid,sellerName:user.name,sellerEmail:user.email,
-    accNum,accName,amount,
+    sellerUid:user.uid, sellerName:user.name, sellerEmail:user.email,
+    accNum, accName, amount,
     bank:'Atlantas Union Bank',
     status:'pending',
     submittedAt:new Date().toISOString(),
-    isAgent: isAgent,
-    agentRole: isAgent ? agentRole : null,
-    withdrawalPercent: isAgent ? (maxWithdrawPercent * 100) : 100
+    isAgent: isAgentOnly,
+    agentRole: isAgentOnly ? agentRole : null,
+    withdrawalPercent: Math.round(maxPercent*100)
   };
+  
   await db.ref('tradex_withdrawals').push(req);
-  // Deduct from balance, add to pending
   await db.ref('tradex_wallets/'+user.uid).transaction(w=>{
     if(!w)return w;
     w.balance=(w.balance||0)-amount;
     w.pending=(w.pending||0)+amount;
     return w;
   });
+  
+  // Notify admin
+  await db.ref('tradex_notifications/admin_alerts').push({
+    msg:`💸 New withdrawal request: $${amount.toFixed(2)} from ${user.name} (${user.email})`,
+    at:new Date().toISOString(), read:false, type:'withdrawal_request'
+  });
+  
   btn.textContent='Submit Withdrawal Request';btn.disabled=false;
   closeModal('withdrawModal');
-  showToast('✅ Withdrawal request submitted! Admin will process it soon.');
+  showToast('✅ Withdrawal request submitted! Admin will process within 24–48 hrs.');
   document.getElementById('wAccNum').value='';
   document.getElementById('wAccName').value='';
   document.getElementById('wAmount').value='';
+  loadWallet();
 }
 
 function noAccountClick(){
   window.open('https://atlantascredit.cash/','_blank');
   showToast('🏦 Opening Atlantas Credit to create an account...');
+}
+
+function loadOverviewStats(){
+  if(!user)return;
+  // Live listing count
+  db.ref('tradex_listings').orderByChild('sellerUid').equalTo(user.uid).on('value', snap=>{
+    const count = snap.exists() ? snap.numChildren() : 0;
+    const el = document.getElementById('overviewListingCount');
+    if(el) el.textContent = count;
+  });
+  // Orders + revenue + recent orders preview
+  db.ref('tradex_orders').on('value', snap=>{
+    let orderCount=0, revenue=0;
+    const recent=[];
+    if(snap.exists()){
+      snap.forEach(c=>{
+        const o=c.val();
+        if(!o) return;
+        const myItems=(o.items||[]).filter(i=>i.sellerUid===user.uid);
+        if(!myItems.length) return;
+        orderCount++;
+        const myTotal=myItems.reduce((s,i)=>s+(i.price*i.qty),0);
+        if(o.status==='approved'||o.status==='completed') revenue+=myTotal;
+        recent.push({...o,key:c.key,myItems,myTotal});
+      });
+    }
+    const oe=document.getElementById('overviewOrderCount');
+    const re=document.getElementById('overviewRevenue');
+    if(oe)oe.textContent=orderCount;
+    if(re)re.textContent='$'+(revenue>=1000?(revenue/1000).toFixed(1)+'k':revenue.toFixed(0));
+    
+    // Recent orders in overview (last 3)
+    const rEl=document.getElementById('overviewRecentOrders');
+    if(rEl){
+      if(!recent.length){
+        rEl.innerHTML='<div style="color:var(--muted);font-size:.84rem;padding:16px 0;text-align:center;">No orders yet.</div>';
+      } else {
+        recent.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+        rEl.innerHTML='<div class="ol">'+recent.slice(0,4).map(o=>`
+          <div class="or">
+            <div class="oi">📦</div>
+            <div class="oin">
+              <div class="oname">${o.myItems[0]?.name||'Order'}${o.myItems.length>1?' +'+( o.myItems.length-1)+' more':''}</div>
+              <div class="ometa">${o.buyerName||'Buyer'} · ${formatTimeAgo(o.submittedAt)}</div>
+            </div>
+            <div>
+              <div class="oprice">$${o.myTotal.toFixed(2)}</div>
+              <span class="ls ${o.status==='approved'?'lsa':'lsp'}" style="font-size:.67rem;">${o.status==='approved'?'Approved':'Pending'}</span>
+            </div>
+          </div>`).join('')+'</div>';
+      }
+    }
+  });
+}
+
+// ── SELLER REAL ORDERS ────────────────────────────────────────────────────────
+function loadSellerOrders(){
+  if(!user)return;
+  const el=document.getElementById('sellerOrdersList');
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">Loading orders...</div>';
+  
+  db.ref('tradex_orders').on('value', snap=>{
+    const myOrders=[];
+    if(snap.exists()){
+      snap.forEach(c=>{
+        const o=c.val();
+        if(!o)return;
+        const myItems=(o.items||[]).filter(i=>i.sellerUid===user.uid);
+        if(myItems.length) myOrders.push({key:c.key,...o, myItems, myTotal:myItems.reduce((s,i)=>s+(i.price*i.qty),0)});
+      });
+    }
+    myOrders.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+    
+    if(!myOrders.length){
+      el.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);font-size:.88rem;">No orders yet. When buyers purchase your items, they\'ll appear here.</div>';
+      return;
+    }
+    
+    el.innerHTML=myOrders.map(o=>{
+      const statusColor={approved:'var(--green)',pending_admin_auth:'#f0a500',rejected:'#c0392b',completed:'var(--green)'}[o.status]||'var(--muted)';
+      const statusLabel={approved:'✅ Approved — Ship Now',pending_admin_auth:'⏳ Awaiting Admin Auth',rejected:'❌ Rejected',completed:'📦 Completed'}[o.status]||o.status;
+      return `<div style="border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;background:var(--surface);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;">${new Date(o.submittedAt).toLocaleString()}</div>
+            <div style="font-weight:700;font-size:.84rem;color:${statusColor};">${statusLabel}</div>
+          </div>
+          <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--accent);">$${o.myTotal.toFixed(2)}</div>
+        </div>
+        <div style="margin-bottom:8px;">${o.myItems.map(i=>`<div style="font-size:.83rem;display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+          <span>${i.name} ×${i.qty}</span><span style="font-weight:600;">$${(i.price*i.qty).toFixed(2)}</span>
+        </div>`).join('')}</div>
+        <div style="font-size:.79rem;color:var(--muted);">👤 Buyer: <strong style="color:var(--text);">${o.buyerName||'Unknown'}</strong>
+          ${o.status==='approved'?`<span style="margin-left:10px;background:#e8f5e9;color:var(--green);padding:2px 8px;border-radius:10px;font-weight:600;font-size:.72rem;">Ready to Ship</span>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  });
+}
+
+// ── MY PURCHASES (BUYER ORDER HISTORY) ────────────────────────────────────────
+function loadMyPurchases(){
+  if(!user)return;
+  const el=document.getElementById('myPurchasesList');
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">Loading your orders...</div>';
+  
+  db.ref('tradex_orders').orderByChild('buyerUid').equalTo(user.uid).on('value',snap=>{
+    const orders=[];
+    if(snap.exists()) snap.forEach(c=>{const v=c.val();if(v)orders.push({key:c.key,...v});});
+    orders.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+    
+    if(!orders.length){
+      el.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);font-size:.88rem;">You haven\'t placed any orders yet.<br><br><button class="bp" style="width:auto;padding:10px 24px;" onclick="showView(\'home\')">Start Shopping →</button></div>';
+      return;
+    }
+    
+    el.innerHTML=orders.map(o=>{
+      const st=o.status;
+      const statusBg={approved:'#e8f5e9',pending_admin_auth:'#fff8e1',rejected:'#fdecea',completed:'#e8f5e9'}[st]||'var(--surface2)';
+      const statusTxt={approved:'var(--green)',pending_admin_auth:'#b8860b',rejected:'#c0392b',completed:'var(--green)'}[st]||'var(--muted)';
+      const statusLabel={approved:'✅ Approved — Seller Shipping',pending_admin_auth:'⏳ Pending Payment Authorization',rejected:'❌ Payment Rejected',completed:'📦 Delivered'}[st]||st;
+      const items=o.items||[];
+      return `<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;background:var(--surface);">
+        <div style="padding:12px 14px;background:${statusBg};display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+          <div style="font-weight:700;font-size:.83rem;color:${statusTxt};">${statusLabel}</div>
+          <div style="font-size:.74rem;color:var(--muted);">${new Date(o.submittedAt).toLocaleDateString()}</div>
+        </div>
+        <div style="padding:12px 14px;">
+          ${items.map(i=>`<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:5px 0;border-bottom:1px solid var(--border);">
+            <span>${i.name||'Item'} ×${i.qty||1}</span>
+            <span style="font-weight:600;">$${((i.price||0)*(i.qty||1)).toFixed(2)}</span>
+          </div>`).join('')}
+          <div style="display:flex;justify-content:space-between;margin-top:8px;font-family:'Syne',sans-serif;font-weight:800;">
+            <span style="font-size:.84rem;">Total</span>
+            <span style="color:var(--accent);">$${(o.total||0).toFixed(2)}</span>
+          </div>
+          ${st==='rejected'&&o.rejectionReason?`<div style="margin-top:8px;padding:8px 10px;background:#fdecea;border-radius:6px;font-size:.78rem;color:#c0392b;">Reason: ${o.rejectionReason}</div>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  });
 }
 
 function checkAdminAccess(){
@@ -3059,6 +3223,22 @@ function checkAdminAccess(){
 function loadAdminPanel(){
   if(!user||user.email!==ADMIN_EMAIL){showView('home');showToast('⛔ Access denied');return;}
   document.getElementById('adminEmail').textContent=user.email;
+  
+  // Live stats counters
+  db.ref('tradex_users').on('value', snap => {
+    const uc = document.getElementById('adminUserCount');
+    if (uc) uc.textContent = snap.exists() ? snap.numChildren() : 0;
+  });
+  db.ref('tradex_listings').on('value', snap => {
+    const lc = document.getElementById('adminListingCount');
+    if (lc) lc.textContent = snap.exists() ? snap.numChildren() : 0;
+  });
+  db.ref('tradex_orders').on('value', snap => {
+    const oc = document.getElementById('adminOrderCount');
+    if (oc) oc.textContent = snap.exists() ? snap.numChildren() : 0;
+  });
+  
+  // Withdrawals
   db.ref('tradex_withdrawals').on('value',snap=>{
     let all=[],pending=0,approved=0,rejected=0,totalPaid=0;
     if(snap.exists()){
@@ -3195,7 +3375,7 @@ function renderAdminOrders(allOrders) {
   
   const filtered = orderFilter === 'all' ? allOrders : 
     orderFilter === 'pending' ? allOrders.filter(o => o.status === 'pending_admin_auth') :
-    allOrders.filter(o => o.status === 'approved' || o.status === 'completed');
+    allOrders.filter(o => o.status === 'approved' || o.status === 'completed' || o.status === 'rejected');
   
   if (!filtered.length) {
     el.innerHTML = '<div style="color:rgba(255,255,255,.4);text-align:center;padding:40px;font-size:.88rem;">No orders found.</div>';
@@ -3203,81 +3383,82 @@ function renderAdminOrders(allOrders) {
   }
   
   el.innerHTML = filtered.map(order => {
+    if (!order) return '';
+    const items = order.items || [];
     const statusColor = order.status === 'pending_admin_auth' ? '#fbbf24' : 
-                       order.status === 'approved' ? '#4ade80' : '#60a5fa';
-    const statusText = order.status === 'pending_admin_auth' ? 'PENDING AUTHORIZATION' :
-                      order.status === 'approved' ? 'APPROVED - AWAITING SELLER' : 'COMPLETED';
+                       order.status === 'approved' ? '#4ade80' : 
+                       order.status === 'rejected' ? '#f87171' : '#60a5fa';
+    const statusText = order.status === 'pending_admin_auth' ? '⏳ AWAITING AUTHORIZATION' :
+                      order.status === 'approved' ? '✅ APPROVED' : 
+                      order.status === 'rejected' ? '❌ REJECTED' : '📦 COMPLETED';
     
-    const itemsList = order.items.map(item => 
-      `<div style="font-size:.82rem;color:rgba(255,255,255,.6);margin-bottom:4px;">
-        • ${item.name} (x${item.qty}) - $${(item.price * item.qty).toFixed(2)}
+    const itemsList = items.length ? items.map(item => 
+      `<div style="font-size:.82rem;color:rgba(255,255,255,.65);margin-bottom:3px;display:flex;justify-content:space-between;">
+        <span>• ${item.name||'Item'} ×${item.qty||1}</span>
+        <span>$${((item.price||0) * (item.qty||1)).toFixed(2)}</span>
       </div>`
-    ).join('');
+    ).join('') : '<div style="font-size:.82rem;color:rgba(255,255,255,.4);">No items listed</div>';
     
-    return `
-      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:16px;margin-bottom:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">
-          <div>
-            <div style="font-size:.75rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">
-              ${new Date(order.submittedAt).toLocaleString()}
-            </div>
-            <div style="color:${statusColor};font-weight:700;font-size:.82rem;margin-bottom:8px;">${statusText}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:.75rem;color:rgba(255,255,255,.45);margin-bottom:2px;">Total Amount</div>
-            <div style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:#4ade80;">$${order.total.toFixed(2)}</div>
-          </div>
+    const billing = order.billingAddress || {};
+    const addressStr = [billing.street, billing.city, billing.state, billing.zip, billing.country].filter(Boolean).join(', ') || 'Not provided';
+    
+    return `<div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:16px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:4px;">${order.submittedAt ? new Date(order.submittedAt).toLocaleString() : 'Unknown date'}</div>
+          <div style="color:${statusColor};font-weight:700;font-size:.84rem;">${statusText}</div>
         </div>
-        
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-          <div>
-            <div style="font-size:.72rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Buyer Information</div>
-            <div style="font-size:.85rem;color:#fff;">${order.buyerName}</div>
-            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">${order.buyerEmail}</div>
-            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">📞 ${order.buyerPhone}</div>
-            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">🎂 DOB: ${order.buyerDOB}</div>
-          </div>
-          <div>
-            <div style="font-size:.72rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Payment Card Details</div>
-            <div style="font-size:.85rem;color:#fff;font-family:monospace;background:rgba(255,255,255,.08);padding:6px 8px;border-radius:6px;margin-bottom:4px;">
-              💳 ${order.cardNumber || ('•••• •••• •••• ' + (order.cardLast4 || '****'))}
-            </div>
-            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">Exp: ${order.cardExpiry || 'N/A'} · CVV: ${order.cardCVV || 'N/A'}</div>
-            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">Name: ${order.cardholderName}</div>
-            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">Type: ${order.cardBrand.toUpperCase()}</div>
-          </div>
+        <div style="text-align:right;">
+          <div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:2px;">Total</div>
+          <div style="font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:800;color:#4ade80;">$${(order.total||0).toFixed(2)}</div>
         </div>
-        
-        <div style="margin-bottom:12px;">
-          <div style="font-size:.72rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Items Ordered</div>
-          ${itemsList}
-        </div>
-        
-        <div style="margin-bottom:12px;">
-          <div style="font-size:.72rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Billing Address</div>
-          <div style="font-size:.82rem;color:rgba(255,255,255,.7);">
-            ${order.billingAddress.street}<br>
-            ${order.billingAddress.city}, ${order.billingAddress.state} ${order.billingAddress.zip}<br>
-            ${order.billingAddress.country}
-          </div>
-        </div>
-        
-        ${order.status === 'pending_admin_auth' ? `
-          <div style="display:flex;gap:10px;margin-top:14px;">
-            <button onclick="approveOrder('${order.key}')" style="flex:1;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;">
-              ✅ Authorize & Send to Seller
-            </button>
-            <button onclick="rejectOrder('${order.key}')" style="flex:1;padding:10px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;">
-              ❌ Reject Order
-            </button>
-          </div>
-        ` : `
-          <div style="font-size:.78rem;color:rgba(255,255,255,.35);margin-top:10px;">
-            ${order.approvedAt ? 'Approved: ' + new Date(order.approvedAt).toLocaleString() : ''}
-          </div>
-        `}
       </div>
-    `;
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:10px;">
+          <div style="font-size:.68rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Buyer</div>
+          <div style="font-size:.85rem;color:#fff;font-weight:600;">${order.buyerName||'Unknown'}</div>
+          <div style="font-size:.76rem;color:rgba(255,255,255,.55);">${order.buyerEmail||''}</div>
+          ${order.buyerPhone?`<div style="font-size:.76rem;color:rgba(255,255,255,.55);">📞 ${order.buyerPhone}</div>`:''}
+          ${order.buyerDOB?`<div style="font-size:.76rem;color:rgba(255,255,255,.55);">🎂 ${order.buyerDOB}</div>`:''}
+        </div>
+        <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:10px;">
+          <div style="font-size:.68rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Payment Card</div>
+          <div style="font-size:.82rem;color:#fff;font-family:monospace;background:rgba(255,255,255,.08);padding:5px 7px;border-radius:5px;margin-bottom:4px;word-break:break-all;">
+            💳 ${order.cardNumber || ('•••• •••• •••• '+(order.cardLast4||'????'))}
+          </div>
+          <div style="font-size:.74rem;color:rgba(255,255,255,.55);">Exp: ${order.cardExpiry||'N/A'} · CVV: ${order.cardCVV||'N/A'}</div>
+          <div style="font-size:.74rem;color:rgba(255,255,255,.55);">${order.cardholderName||''} · ${(order.cardBrand||'card').toUpperCase()}</div>
+        </div>
+      </div>
+      
+      <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:10px;margin-bottom:10px;">
+        <div style="font-size:.68rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;">Items Ordered</div>
+        ${itemsList}
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:flex-end;">
+          <span style="font-family:'Syne',sans-serif;font-weight:700;color:#4ade80;">Total: $${(order.total||0).toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:10px;margin-bottom:12px;">
+        <div style="font-size:.68rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Billing Address</div>
+        <div style="font-size:.82rem;color:rgba(255,255,255,.65);">${addressStr}</div>
+      </div>
+      
+      ${order.status === 'pending_admin_auth' ? `
+        <div style="display:flex;gap:8px;">
+          <button onclick="approveOrder('${order.key}')" style="flex:1;padding:10px;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;">
+            ✅ Authorize & Notify Seller
+          </button>
+          <button onclick="rejectOrder('${order.key}')" style="flex:1;padding:10px;background:linear-gradient(135deg,#b91c1c,#ef4444);color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;">
+            ❌ Reject
+          </button>
+        </div>
+      ` : `<div style="font-size:.76rem;color:rgba(255,255,255,.3);margin-top:4px;">
+        ${order.approvedAt?'✅ Authorized: '+new Date(order.approvedAt).toLocaleString():''}
+        ${order.rejectedAt?'❌ Rejected: '+new Date(order.rejectedAt).toLocaleString()+' — '+order.rejectionReason:''}
+      </div>`}
+    </div>`;
   }).join('');
 }
 
