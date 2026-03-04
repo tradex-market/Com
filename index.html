@@ -27,6 +27,8 @@ const storage=firebase.storage();
 :root{--bg:#f7f5f2;--surface:#fff;--surface2:#f0ede8;--border:#e2ddd7;--text:#1a1714;--muted:#7a746c;--accent:#e8440a;--al:#fff0eb;--green:#2d7a4f;--r:12px;--sh:0 2px 16px rgba(0,0,0,0.07);--shl:0 8px 40px rgba(0,0,0,0.12);}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.container{max-width:1400px;margin:0 auto;width:100%;}
+.view{max-width:1400px;margin:0 auto;}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(26,23,20,.55);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;}
 .modal-overlay.active{display:flex;}
 .modal{background:var(--surface);border-radius:18px;padding:34px;width:90%;max-width:480px;position:relative;box-shadow:var(--shl);animation:su .3s ease;max-height:90vh;overflow-y:auto;}
@@ -393,6 +395,51 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
   </div>
 </div>
 
+<!-- CHAT PANEL -->
+<div class="cart-sb" id="chatPanel" style="display:none;">
+  <div class="cart-hd">
+    <h3>💬 Messages</h3>
+    <button class="cclose" onclick="toggleChat()">✕</button>
+  </div>
+  
+  <!-- Chat Mode Toggle (Seller/Buyer) -->
+  <div id="chatModeToggle" style="padding:12px 16px;border-bottom:1px solid var(--border);display:none;">
+    <div style="display:flex;gap:6px;background:var(--surface2);border-radius:8px;padding:3px;">
+      <button class="chat-mode-btn active" id="sellerChatBtn" onclick="switchChatMode('seller')" style="flex:1;padding:7px;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;background:var(--surface);transition:all .2s;">
+        As Seller
+      </button>
+      <button class="chat-mode-btn" id="buyerChatBtn" onclick="switchChatMode('buyer')" style="flex:1;padding:7px;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;background:transparent;transition:all .2s;">
+        As Buyer
+      </button>
+    </div>
+  </div>
+  
+  <!-- Chat List -->
+  <div id="chatList" style="flex:1;overflow-y:auto;padding:12px;">
+    <div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:.85rem;">
+      No conversations yet
+    </div>
+  </div>
+  
+  <!-- Active Chat View -->
+  <div id="activeChatView" style="display:none;position:absolute;inset:0;background:var(--surface);flex-direction:column;">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+      <button onclick="closeActiveChat()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;">←</button>
+      <div style="flex:1;">
+        <div id="activeChatName" style="font-weight:600;font-size:.9rem;"></div>
+        <div id="activeChatProduct" style="font-size:.75rem;color:var(--muted);"></div>
+      </div>
+    </div>
+    <div id="chatMessages" style="flex:1;overflow-y:auto;padding:16px;"></div>
+    <div style="padding:12px;border-top:1px solid var(--border);">
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="chatInput" placeholder="Type a message..." style="flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem;outline:none;" onkeypress="if(event.key==='Enter')sendChatMessage()">
+        <button onclick="sendChatMessage()" style="padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- CHECKOUT MODAL WITH PAYMENT DETAILS -->
 <div class="modal-overlay" id="checkoutModal">
   <div class="modal" style="max-width:560px;">
@@ -521,6 +568,15 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
   </div>
 </div>
 
+<!-- LISTING PREVIEW MODAL -->
+<div class="modal-overlay" id="listingPreviewModal">
+  <div class="modal" style="max-width:600px;">
+    <button class="mc" onclick="closeModal('listingPreviewModal')">✕</button>
+    <h2 style="margin-bottom:20px;">Product Preview</h2>
+    <div id="listingPreviewContent"></div>
+  </div>
+</div>
+
 <!-- NAV -->
 <nav>
   <a href="#" class="logo" onclick="showView('home')">trade<span>x</span></a>
@@ -533,6 +589,10 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
     <button onclick="showToast('🔍 Searching...')">⌕</button>
   </div>
   <div class="na">
+    <button class="cb" id="chatButton" onclick="toggleChat()" style="position:relative;">
+      💬
+      <span class="cc" id="chatBadge" style="display:none;">0</span>
+    </button>
     <button class="cb" id="cartButton" onclick="toggleCart()">🛒<span class="cc" id="cbadge">0</span></button>
     <div id="guestNav">
       <div style="display:flex;gap:7px;">
@@ -658,18 +718,13 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 
     <div id="sd-listings" style="display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:17px;">
-        <div style="font-weight:600;font-size:.91rem;">Your Listings (34)</div>
+        <div style="font-weight:600;font-size:.91rem;">Your Listings (<span id="myListingsCount">0</span>)</div>
         <button class="bp" style="width:auto;padding:8px 17px;font-size:.84rem;" onclick="showView('addListing')">+ New Listing</button>
       </div>
-      <div class="pb" style="overflow-x:auto;">
-        <table class="lt"><thead><tr><th>Item</th><th>Price</th><th>Category</th><th>Status</th><th>Views</th><th></th></tr></thead>
-        <tbody>
-          <tr><td>🎧 Wireless Earbuds Pro</td><td>$49.99</td><td>Electronics</td><td><span class="ls lsa">Active</span></td><td>208</td><td><button class="abtn" onclick="showToast('✏️ Edit')">Edit</button></td></tr>
-          <tr><td>👟 Nike Air Max 90</td><td>$95.00</td><td>Fashion</td><td><span class="ls lsa">Active</span></td><td>874</td><td><button class="abtn" onclick="showToast('✏️ Edit')">Edit</button></td></tr>
-          <tr><td>🚗 2020 Toyota Camry SE</td><td>$18,500</td><td>Vehicles</td><td><span class="ls lsp">Pending</span></td><td>1,204</td><td><button class="abtn" onclick="showToast('✏️ Edit')">Edit</button></td></tr>
-          <tr><td>📚 Atomic Habits</td><td>$18.00</td><td>Books</td><td><span class="ls lsa">Active</span></td><td>841</td><td><button class="abtn" onclick="showToast('✏️ Edit')">Edit</button></td></tr>
-          <tr><td>🏋️ Adjustable Dumbbell</td><td>$149</td><td>Sports</td><td><span class="ls lss">Sold</span></td><td>156</td><td><button class="abtn" onclick="showToast('🔄 Relist')">Relist</button></td></tr>
-        </tbody></table>
+      <div id="myListingsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:.88rem;">
+          Loading your listings...
+        </div>
       </div>
     </div>
 
@@ -1005,7 +1060,7 @@ const edata={
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
-  renderProducts(products);
+  loadAllProducts();
   renderAgents();
   auth.onAuthStateChanged(fbUser=>{
     if(fbUser){
@@ -1020,6 +1075,40 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
+function loadAllProducts() {
+  // Load real Firebase listings first
+  db.ref('tradex_listings').orderByChild('status').equalTo('active').on('value', snap => {
+    const realListings = [];
+    
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const listing = c.val();
+        realListings.push({
+          id: 'real_' + c.key,
+          firebaseKey: c.key,
+          name: listing.title,
+          cat: listing.category?.toLowerCase() || 'other',
+          catL: listing.category || 'Other',
+          price: listing.price,
+          img: listing.mainImage || 'https://via.placeholder.com/600x450?text=No+Image',
+          badge: null,
+          seller: listing.sellerName || 'Seller',
+          rating: 4.5,
+          rev: 0,
+          isRealListing: true,
+          sellerUid: listing.sellerUid,
+          description: listing.description,
+          images: listing.images || []
+        });
+      });
+    }
+    
+    // Combine: Real listings first, then demo products
+    const allProducts = [...realListings, ...products];
+    renderProducts(allProducts);
+  });
+}
+
 function showView(v){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));const el=document.getElementById('view-'+v);if(el)el.classList.add('active');window.scrollTo(0,0);}
 function showSellerDash(){
   if(!user){openModal('authModal');showToast('🔐 Sign in first');return;}
@@ -1033,6 +1122,8 @@ function showSellerDash(){
     if(ob)ob.textContent='$'+(w.balance||0).toFixed(2);
     if(op)op.textContent='Pending withdrawal: $'+(w.pending||0).toFixed(2);
   });
+  // Load seller listings
+  loadSellerListings();
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
@@ -1045,28 +1136,68 @@ function renderProducts(list){
     const st=p.rating>=4.9?'★★★★★':p.rating>=4.6?'★★★★½':p.rating>=4.2?'★★★★☆':'★★★☆☆';
     const pr=p.price>=1000?'$'+p.price.toLocaleString():'$'+p.price.toFixed(2);
     const specs=p.isCar&&p.specs?`<div class="cs"><span class="csp">📅 ${p.specs.year}</span><span class="csp">📍 ${p.specs.km}</span><span class="csp">⛽ ${p.specs.fuel}</span><span class="csp">⚙️ ${p.specs.trans}</span></div>`:'';
-    return `<div class="pc">
-      <div class="pi" onclick="openEnq(${p.id})" style="cursor:pointer;">
+    const isReal = p.isRealListing;
+    
+    return `<div class="pc" style="${isReal?'border-color:#2d7a4f;border-width:2px;':''}">
+      ${isReal?'<div style="position:absolute;top:8px;left:8px;background:#2d7a4f;color:#fff;padding:3px 8px;border-radius:100px;font-size:.68rem;font-weight:700;z-index:2;">✓ VERIFIED</div>':''}
+      <div class="pi" onclick="${isReal?`viewRealProduct('${p.firebaseKey}')`:`openEnq(${p.id})`}" style="cursor:pointer;">
         ${p.badge?`<div class="pbadge ${p.badge==='hot'?'bh':'bn'}">${p.badge==='hot'?'🔥 Hot':'✨ New'}</div>`:''}
         <div class="pw ${wishlist.has(p.id)?'active':''}" onclick="event.stopPropagation();toggleWish(${p.id},this)">♥</div>
         <img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.parentElement.style.background='var(--surface2)'">
       </div>
       <div class="pin">
         <div class="pcat">${p.catL}</div>
-        <div class="pname" onclick="openEnq(${p.id})" style="cursor:pointer;">${p.name}</div>
+        <div class="pname" onclick="${isReal?`viewRealProduct('${p.firebaseKey}')`:`openEnq(${p.id})`}" style="cursor:pointer;">${p.name}</div>
         ${specs}
         <div class="pr"><span class="st">${st}</span>&nbsp;${p.rating} (${p.rev})</div>
         <div class="psel"><div class="sd">${p.seller[0]}</div>${p.seller}</div>
         <div class="pf">
           <div class="pp">${pr}</div>
           <div style="display:flex;gap:4px;">
-            <button class="ac" style="background:var(--surface2);color:var(--text);border:1.5px solid var(--border);font-size:.72rem;padding:5px 8px;" onclick="openEnq(${p.id})">💬${ec>0?' '+ec:''}</button>
-            <button class="ac" onclick="addCart(${p.id})">${p.isCar?'Enquire':'+ Cart'}</button>
+            ${isReal?`<button class="ac" style="background:var(--accent);color:#fff;font-size:.72rem;padding:5px 8px;" onclick="event.stopPropagation();startChat('${p.firebaseKey}','${p.sellerUid}','${p.seller}','${p.name}')">💬 Message</button>`:`<button class="ac" style="background:var(--surface2);color:var(--text);border:1.5px solid var(--border);font-size:.72rem;padding:5px 8px;" onclick="openEnq(${p.id})">💬${ec>0?' '+ec:''}</button>`}
+            <button class="ac" onclick="${isReal?`addRealCart('${p.firebaseKey}')`:`addCart(${p.id})`}">${p.isCar?'Enquire':'+ Cart'}</button>
           </div>
         </div>
       </div>
     </div>`;
   }).join('');
+}
+
+function viewRealProduct(firebaseKey) {
+  db.ref('tradex_listings/' + firebaseKey).once('value').then(snap => {
+    const listing = snap.val();
+    if (listing) {
+      openModal('listingPreviewModal');
+      renderListingPreview(listing);
+    }
+  });
+}
+
+function addRealCart(firebaseKey) {
+  db.ref('tradex_listings/' + firebaseKey).once('value').then(snap => {
+    const listing = snap.val();
+    if (!listing) return;
+    
+    const cartItem = {
+      id: 'real_' + firebaseKey,
+      firebaseKey: firebaseKey,
+      name: listing.title,
+      price: listing.price,
+      seller: listing.sellerName,
+      sellerUid: listing.sellerUid,
+      qty: 1,
+      img: listing.mainImage
+    };
+    
+    const existing = cart.find(x => x.id === cartItem.id);
+    if (existing) {
+      existing.qty++;
+    } else {
+      cart.push(cartItem);
+    }
+    updCart();
+    showToast(`✅ ${listing.title} added to cart`);
+  });
 }
 
 function fcat(cat,el){
@@ -1419,6 +1550,352 @@ function sendEnq(){
     enqRef.child(currentEnqP.id).push(r);
     edata[currentEnqP.id].push(r);renderEnqThr(currentEnqP.id);
   },1300);
+}
+
+// ── CHAT SYSTEM ───────────────────────────────────────────────────────────────
+let currentChatMode = 'seller'; // 'seller' or 'buyer'
+let activeChat = null;
+let userChats = [];
+
+function toggleChat() {
+  const panel = document.getElementById('chatPanel');
+  const isOpen = panel.style.display === 'flex';
+  
+  if (isOpen) {
+    panel.style.display = 'none';
+  } else {
+    document.getElementById('cartSb').classList.remove('open');
+    panel.style.display = 'flex';
+    loadChats();
+  }
+}
+
+function switchChatMode(mode) {
+  currentChatMode = mode;
+  document.getElementById('sellerChatBtn').classList.toggle('active', mode === 'seller');
+  document.getElementById('buyerChatBtn').classList.toggle('active', mode === 'buyer');
+  
+  // Update button styles
+  const sellerBtn = document.getElementById('sellerChatBtn');
+  const buyerBtn = document.getElementById('buyerChatBtn');
+  if (mode === 'seller') {
+    sellerBtn.style.background = 'var(--surface)';
+    sellerBtn.style.color = 'var(--text)';
+    buyerBtn.style.background = 'transparent';
+    buyerBtn.style.color = 'var(--muted)';
+  } else {
+    buyerBtn.style.background = 'var(--surface)';
+    buyerBtn.style.color = 'var(--text)';
+    sellerBtn.style.background = 'transparent';
+    sellerBtn.style.color = 'var(--muted)';
+  }
+  
+  loadChats();
+}
+
+function loadChats() {
+  if (!user) {
+    document.getElementById('chatList').innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:.85rem;">Sign in to view messages</div>';
+    return;
+  }
+  
+  // Show toggle for users who can be both seller and buyer
+  document.getElementById('chatModeToggle').style.display = 'block';
+  
+  const chatList = document.getElementById('chatList');
+  chatList.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:.85rem;">Loading chats...</div>';
+  
+  if (currentChatMode === 'seller') {
+    // Load chats where user is the seller (buyers messaging them)
+    db.ref('tradex_chats').orderByChild('sellerUid').equalTo(user.uid).on('value', snap => {
+      renderChatList(snap);
+    });
+  } else {
+    // Load chats where user is the buyer (messaging sellers)
+    db.ref('tradex_chats').orderByChild('buyerUid').equalTo(user.uid).on('value', snap => {
+      renderChatList(snap);
+    });
+  }
+}
+
+function renderChatList(snap) {
+  const chatList = document.getElementById('chatList');
+  const chats = [];
+  
+  if (snap.exists()) {
+    snap.forEach(c => {
+      const chat = { key: c.key, ...c.val() };
+      chats.push(chat);
+    });
+  }
+  
+  if (!chats.length) {
+    chatList.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:.85rem;">
+      No ${currentChatMode === 'seller' ? 'buyer' : 'seller'} messages yet
+    </div>`;
+    return;
+  }
+  
+  // Sort by last message time
+  chats.sort((a, b) => {
+    const aTime = a.lastMessageAt || a.createdAt;
+    const bTime = b.lastMessageAt || b.createdAt;
+    return new Date(bTime) - new Date(aTime);
+  });
+  
+  chatList.innerHTML = chats.map(chat => {
+    const otherPerson = currentChatMode === 'seller' ? chat.buyerName : chat.sellerName;
+    const unread = chat.unreadCount || 0;
+    
+    return `
+      <div onclick="openChat('${chat.key}')" style="padding:12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px;">
+          <div style="font-weight:600;font-size:.88rem;">${otherPerson}</div>
+          ${unread > 0 ? `<span style="background:var(--accent);color:#fff;border-radius:12px;padding:2px 7px;font-size:.7rem;font-weight:700;">${unread}</span>` : ''}
+        </div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px;">${chat.productTitle || 'Product inquiry'}</div>
+        <div style="font-size:.76rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          ${chat.lastMessage || 'Start conversation'}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // Update badge
+  const totalUnread = chats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+  const badge = document.getElementById('chatBadge');
+  if (totalUnread > 0) {
+    badge.textContent = totalUnread;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function openChat(chatKey) {
+  db.ref('tradex_chats/' + chatKey).once('value').then(snap => {
+    const chat = snap.val();
+    if (!chat) return;
+    
+    activeChat = { key: chatKey, ...chat };
+    
+    document.getElementById('activeChatName').textContent = 
+      currentChatMode === 'seller' ? chat.buyerName : chat.sellerName;
+    document.getElementById('activeChatProduct').textContent = chat.productTitle || '';
+    
+    document.getElementById('chatList').parentElement.style.display = 'none';
+    document.getElementById('activeChatView').style.display = 'flex';
+    
+    loadChatMessages(chatKey);
+    
+    // Mark as read
+    if (currentChatMode === 'seller') {
+      db.ref('tradex_chats/' + chatKey).update({ unreadCount: 0 });
+    }
+  });
+}
+
+function loadChatMessages(chatKey) {
+  db.ref('tradex_messages/' + chatKey).on('value', snap => {
+    const messagesDiv = document.getElementById('chatMessages');
+    const messages = [];
+    
+    if (snap.exists()) {
+      snap.forEach(m => messages.push({ key: m.key, ...m.val() }));
+    }
+    
+    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    if (!messages.length) {
+      messagesDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:.85rem;">No messages yet. Start the conversation!</div>';
+      return;
+    }
+    
+    messagesDiv.innerHTML = messages.map(msg => {
+      const isMe = msg.senderUid === user.uid;
+      return `
+        <div style="display:flex;justify-content:${isMe ? 'flex-end' : 'flex-start'};margin-bottom:12px;">
+          <div style="max-width:75%;background:${isMe ? 'var(--accent)' : 'var(--surface2)'};color:${isMe ? '#fff' : 'var(--text)'};padding:10px 14px;border-radius:12px;">
+            <div style="font-size:.88rem;margin-bottom:4px;">${msg.message}</div>
+            <div style="font-size:.7rem;opacity:.7;">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  });
+}
+
+function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  
+  if (!message || !activeChat) return;
+  
+  const msgData = {
+    senderUid: user.uid,
+    senderName: user.name,
+    message: message,
+    timestamp: new Date().toISOString()
+  };
+  
+  db.ref('tradex_messages/' + activeChat.key).push(msgData);
+  
+  // Update last message in chat
+  db.ref('tradex_chats/' + activeChat.key).update({
+    lastMessage: message,
+    lastMessageAt: new Date().toISOString(),
+    unreadCount: (activeChat.unreadCount || 0) + 1
+  });
+  
+  input.value = '';
+}
+
+function closeActiveChat() {
+  document.getElementById('activeChatView').style.display = 'none';
+  document.getElementById('chatList').parentElement.style.display = 'block';
+  activeChat = null;
+}
+
+// Start chat from product
+function startChat(productId, sellerUid, sellerName, productTitle) {
+  if (!user) {
+    openModal('authModal');
+    showToast('🔐 Sign in to message seller');
+    return;
+  }
+  
+  if (user.uid === sellerUid) {
+    showToast('⚠️ This is your own product');
+    return;
+  }
+  
+  // Check if chat already exists
+  const chatId = `${user.uid}_${sellerUid}_${productId}`;
+  
+  db.ref('tradex_chats/' + chatId).once('value').then(snap => {
+    if (snap.exists()) {
+      // Open existing chat
+      toggleChat();
+      switchChatMode('buyer');
+      setTimeout(() => openChat(chatId), 300);
+    } else {
+      // Create new chat
+      const newChat = {
+        buyerUid: user.uid,
+        buyerName: user.name,
+        sellerUid: sellerUid,
+        sellerName: sellerName,
+        productId: productId,
+        productTitle: productTitle,
+        createdAt: new Date().toISOString(),
+        unreadCount: 0
+      };
+      
+      db.ref('tradex_chats/' + chatId).set(newChat).then(() => {
+        toggleChat();
+        switchChatMode('buyer');
+        setTimeout(() => openChat(chatId), 300);
+        showToast('💬 Chat started with ' + sellerName);
+      });
+    }
+  });
+}
+
+// ── SELLER LISTINGS MANAGEMENT ────────────────────────────────────────────────
+function loadSellerListings() {
+  if (!user) return;
+  
+  db.ref('tradex_listings').orderByChild('sellerUid').equalTo(user.uid).on('value', snap => {
+    const listings = [];
+    
+    if (snap.exists()) {
+      snap.forEach(c => {
+        listings.push({ key: c.key, ...c.val() });
+      });
+    }
+    
+    document.getElementById('myListingsCount').textContent = listings.length;
+    
+    const grid = document.getElementById('myListingsGrid');
+    
+    if (!listings.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:.88rem;">No listings yet. Create your first one!</div>';
+      return;
+    }
+    
+    listings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    grid.innerHTML = listings.map(listing => `
+      <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;overflow:hidden;">
+        <div style="width:100%;aspect-ratio:4/3;background:var(--surface2);position:relative;">
+          ${listing.mainImage ? `<img src="${listing.mainImage}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;opacity:.2;">📷</div>'}
+          <span style="position:absolute;top:8px;right:8px;background:${listing.status==='active'?'#2d7a4f':'#999'};color:#fff;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:700;text-transform:uppercase;">${listing.status}</span>
+        </div>
+        <div style="padding:14px;">
+          <div style="font-weight:600;font-size:.92rem;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${listing.title}</div>
+          <div style="color:var(--accent);font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;margin-bottom:8px;">$${listing.price.toFixed(2)}</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">${listing.category} • ${listing.condition}</div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="previewListing('${listing.key}')" style="flex:1;padding:8px;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">👁️ Preview</button>
+            <button onclick="showToast('✏️ Edit coming soon')" style="flex:1;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">Edit</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  });
+}
+
+function previewListing(listingKey) {
+  db.ref('tradex_listings/' + listingKey).once('value').then(snap => {
+    const listing = snap.val();
+    if (!listing) return;
+    
+    openModal('listingPreviewModal');
+    renderListingPreview(listing);
+  });
+}
+
+function renderListingPreview(listing) {
+  const modal = document.getElementById('listingPreviewContent');
+  if (!modal) return;
+  
+  modal.innerHTML = `
+    <div style="margin-bottom:20px;">
+      <div style="background:var(--surface2);border-radius:12px;overflow:hidden;margin-bottom:16px;">
+        <img src="${listing.mainImage}" style="width:100%;aspect-ratio:4/3;object-fit:cover;" onerror="this.style.display='none'">
+      </div>
+      ${listing.images && listing.images.length > 1 ? `
+        <div style="display:flex;gap:8px;overflow-x:auto;">
+          ${listing.images.map(img => `<img src="${img}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--border);cursor:pointer;" onclick="document.querySelector('#listingPreviewContent img').src='${img}'">`).join('')}
+        </div>
+      ` : ''}
+    </div>
+    
+    <h3 style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:700;margin-bottom:8px;">${listing.title}</h3>
+    <div style="color:var(--accent);font-family:'Syne',sans-serif;font-weight:800;font-size:1.6rem;margin-bottom:16px;">$${listing.price.toFixed(2)}</div>
+    
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+      <span style="background:var(--surface2);padding:6px 12px;border-radius:20px;font-size:.82rem;">${listing.category}</span>
+      <span style="background:var(--surface2);padding:6px 12px;border-radius:20px;font-size:.82rem;">${listing.condition}</span>
+      <span style="background:var(--surface2);padding:6px 12px;border-radius:20px;font-size:.82rem;">Qty: ${listing.qty}</span>
+    </div>
+    
+    <div style="margin-bottom:16px;">
+      <div style="font-weight:600;font-size:.85rem;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">Description</div>
+      <div style="font-size:.9rem;line-height:1.6;white-space:pre-wrap;">${listing.description || 'No description provided'}</div>
+    </div>
+    
+    <div style="margin-bottom:16px;">
+      <div style="font-weight:600;font-size:.85rem;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">Location</div>
+      <div style="font-size:.9rem;">📍 ${listing.location || 'Not specified'}</div>
+    </div>
+    
+    <div style="padding:14px;background:var(--surface2);border-radius:8px;font-size:.82rem;color:var(--muted);">
+      This is how buyers will see your listing
+    </div>
+  `;
 }
 
 // ── IMAGE UPLOAD (Using URLs - No Firebase Storage Required) ─────────────────
