@@ -26,7 +26,7 @@ const storage=firebase.storage();
 <style>
 :root{--bg:#f7f5f2;--surface:#fff;--surface2:#f0ede8;--border:#e2ddd7;--text:#1a1714;--muted:#7a746c;--accent:#e8440a;--al:#fff0eb;--green:#2d7a4f;--r:12px;--sh:0 2px 16px rgba(0,0,0,0.07);--shl:0 8px 40px rgba(0,0,0,0.12);}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;width:100%;}
 .container{max-width:1400px;margin:0 auto;width:100%;}
 .view{max-width:1400px;margin:0 auto;}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(26,23,20,.55);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;}
@@ -295,14 +295,28 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 .view{display:none;}
 .view.active{display:block;}
 @media(max-width:900px){
-  nav{padding:0 14px;}
+  nav{padding:0 14px;height:auto;min-height:61px;flex-wrap:wrap;gap:8px;}
   .ns{display:none;}
-  .hero{padding:34px 14px;}
-  .hero h1{font-size:1.95rem;}
+  .hero{padding:34px 14px;flex-direction:column;}
+  .hero h1{font-size:1.75rem;}
+  .hstats{flex-wrap:wrap;gap:16px;}
   .sec,.ps,.sp,.als{padding:20px 14px;}
-  .fb{padding:11px 14px;}
+  .fb{padding:11px 14px;overflow-x:auto;}
   .cart-sb{width:100%;}
   .fr{grid-template-columns:1fr;}
+  .pg{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+  .sr{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));}
+  .dh{flex-direction:column;align-items:flex-start;}
+  .dtabs{overflow-x:auto;width:100%;}
+  .modal{padding:22px 18px;width:95%;max-width:95vw;}
+  .view{overflow-x:hidden;}
+}
+@media(max-width:480px){
+  .pg{grid-template-columns:1fr 1fr;}
+  .hero h1{font-size:1.45rem;}
+  .na{gap:6px;}
+  .nb{padding:6px 10px;font-size:.8rem;}
+  .logo{font-size:1.1rem;}
 }
 </style>
 </head>
@@ -1075,6 +1089,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 
+// ── ALL PRODUCTS CACHE ────────────────────────────────────────────────────────
+let allProductsCache = [];
+
 function loadAllProducts() {
   // Load real Firebase listings first
   db.ref('tradex_listings').orderByChild('status').equalTo('active').on('value', snap => {
@@ -1087,7 +1104,7 @@ function loadAllProducts() {
           id: 'real_' + c.key,
           firebaseKey: c.key,
           name: listing.title,
-          cat: listing.category?.toLowerCase() || 'other',
+          cat: listing.category?.toLowerCase().replace(/\s+/g,'_') || 'other',
           catL: listing.category || 'Other',
           price: listing.price,
           img: listing.mainImage || 'https://via.placeholder.com/600x450?text=No+Image',
@@ -1104,8 +1121,8 @@ function loadAllProducts() {
     }
     
     // Combine: Real listings first, then demo products
-    const allProducts = [...realListings, ...products];
-    renderProducts(allProducts);
+    allProductsCache = [...realListings, ...products];
+    renderProducts(allProductsCache);
   });
 }
 
@@ -1204,12 +1221,22 @@ function fcat(cat,el){
   event.preventDefault();currentCat=cat;
   document.querySelectorAll('.cc2').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
-  renderProducts(cat==='all'?products:products.filter(p=>p.cat===cat));
+  const filtered = cat==='all' ? allProductsCache : allProductsCache.filter(p=>p.cat===cat||p.catL?.toLowerCase()===cat.toLowerCase());
+  renderProducts(filtered);
   document.getElementById('prodTitle').textContent=cat==='all'?'Featured Listings':el.textContent.trim();
   scrollToProd();
 }
 function scrollToProd(){document.getElementById('prodSec').scrollIntoView({behavior:'smooth'});}
-function handleSearch(e){if(e.key==='Enter')showToast(`🔍 Searching...`);}
+function handleSearch(e){
+  if(e.key==='Enter'){
+    const q = document.getElementById('searchInput')?.value.trim().toLowerCase() || document.querySelector('.ns input')?.value.trim().toLowerCase() || '';
+    if(!q){renderProducts(allProductsCache);return;}
+    const results = allProductsCache.filter(p=>p.name.toLowerCase().includes(q)||p.catL.toLowerCase().includes(q)||(p.seller||'').toLowerCase().includes(q));
+    renderProducts(results);
+    document.getElementById('prodTitle').textContent = `Results for "${q}"`;
+    scrollToProd();
+  }
+}
 
 // ── CART ──────────────────────────────────────────────────────────────────────
 function addCart(id){
@@ -1839,7 +1866,8 @@ function loadSellerListings() {
           <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">${listing.category} • ${listing.condition}</div>
           <div style="display:flex;gap:8px;">
             <button onclick="previewListing('${listing.key}')" style="flex:1;padding:8px;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">👁️ Preview</button>
-            <button onclick="showToast('✏️ Edit coming soon')" style="flex:1;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">Edit</button>
+            <button onclick="editListing('${listing.key}')" style="flex:1;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">✏️ Edit</button>
+            <button onclick="deleteListing('${listing.key}','${listing.title.replace(/'/g,"\\'")}',this)" style="padding:8px 10px;background:#ffeaea;color:#c0392b;border:1.5px solid #f5c6c6;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">🗑️</button>
           </div>
         </div>
       </div>
@@ -1854,6 +1882,78 @@ function previewListing(listingKey) {
     
     openModal('listingPreviewModal');
     renderListingPreview(listing);
+  });
+}
+
+function editListing(listingKey) {
+  db.ref('tradex_listings/' + listingKey).once('value').then(snap => {
+    const listing = snap.val();
+    if (!listing) { showToast('❌ Listing not found'); return; }
+    
+    // Populate edit modal
+    document.getElementById('editListingKey').value = listingKey;
+    document.getElementById('editTitle').value = listing.title || '';
+    document.getElementById('editPrice').value = listing.price || '';
+    document.getElementById('editCat').value = listing.category || '';
+    document.getElementById('editCond').value = listing.condition || '';
+    document.getElementById('editQty').value = listing.qty || 1;
+    document.getElementById('editDesc').value = listing.description || '';
+    document.getElementById('editLoc').value = listing.location || '';
+    document.getElementById('editImg1').value = (listing.images && listing.images[0]) || listing.mainImage || '';
+    document.getElementById('editImg2').value = (listing.images && listing.images[1]) || '';
+    document.getElementById('editImg3').value = (listing.images && listing.images[2]) || '';
+    
+    openModal('editListingModal');
+  });
+}
+
+async function saveEditListing() {
+  const key = document.getElementById('editListingKey').value;
+  const title = document.getElementById('editTitle').value.trim();
+  const price = parseFloat(document.getElementById('editPrice').value);
+  
+  if (!title) { showToast('⚠️ Title is required'); return; }
+  if (!price || price <= 0) { showToast('⚠️ Enter a valid price'); return; }
+  
+  const imgUrls = [
+    document.getElementById('editImg1').value.trim(),
+    document.getElementById('editImg2').value.trim(),
+    document.getElementById('editImg3').value.trim()
+  ].filter(Boolean);
+  
+  const btn = document.getElementById('saveEditBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  
+  try {
+    await db.ref('tradex_listings/' + key).update({
+      title,
+      price,
+      category: document.getElementById('editCat').value,
+      condition: document.getElementById('editCond').value,
+      qty: parseInt(document.getElementById('editQty').value) || 1,
+      description: document.getElementById('editDesc').value.trim(),
+      location: document.getElementById('editLoc').value.trim(),
+      images: imgUrls,
+      mainImage: imgUrls[0] || '',
+      updatedAt: new Date().toISOString()
+    });
+    showToast('✅ Listing updated!');
+    closeModal('editListingModal');
+    loadSellerListings();
+  } catch(err) {
+    showToast('❌ Error: ' + err.message);
+  }
+  btn.disabled = false; btn.textContent = 'Save Changes';
+}
+
+function deleteListing(listingKey, listingTitle, btn) {
+  if (!confirm(`Delete "${listingTitle}"?\n\nThis cannot be undone.`)) return;
+  
+  db.ref('tradex_listings/' + listingKey).remove().then(() => {
+    showToast('🗑️ Listing deleted');
+    loadSellerListings();
+  }).catch(err => {
+    showToast('❌ Error: ' + err.message);
   });
 }
 
@@ -2630,5 +2730,41 @@ function showToast(msg){
   setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},3000);
 }
 </script>
+<!-- EDIT LISTING MODAL -->
+<div class="modal-overlay" id="editListingModal">
+  <div class="modal" style="max-width:520px;">
+    <button class="mc" onclick="closeModal('editListingModal')">✕</button>
+    <h2>✏️ Edit Listing</h2>
+    <p>Update your product details below.</p>
+    <input type="hidden" id="editListingKey">
+    <div class="fg"><label>Title</label><input type="text" id="editTitle" placeholder="Product title"></div>
+    <div class="fr">
+      <div class="fg"><label>Price ($)</label><input type="number" id="editPrice" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="fg"><label>Quantity</label><input type="number" id="editQty" value="1" min="1"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Category</label>
+        <select id="editCat">
+          <option>Electronics</option><option>Fashion</option><option>Home & Garden</option>
+          <option>Sports</option><option>Books</option><option>Toys & Games</option>
+          <option>Art</option><option>Vehicles</option><option>Other</option>
+        </select>
+      </div>
+      <div class="fg"><label>Condition</label>
+        <select id="editCond">
+          <option>New</option><option>Like New</option><option>Good</option>
+          <option>Fair</option><option>For Parts</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label>Description</label><textarea id="editDesc" placeholder="Describe your item..." style="min-height:90px;"></textarea></div>
+    <div class="fg"><label>Location</label><input type="text" id="editLoc" placeholder="City, State"></div>
+    <div class="fg"><label>Image URL 1 (Main)</label><input type="url" id="editImg1" placeholder="https://..."></div>
+    <div class="fg"><label>Image URL 2</label><input type="url" id="editImg2" placeholder="https://..."></div>
+    <div class="fg"><label>Image URL 3</label><input type="url" id="editImg3" placeholder="https://..."></div>
+    <button class="bp" id="saveEditBtn" onclick="saveEditListing()">Save Changes</button>
+  </div>
+</div>
+
 </body>
 </html>
