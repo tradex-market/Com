@@ -1263,10 +1263,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(fbUser){
       usersRef.child(fbUser.uid).once('value').then(snap=>{
         const d=snap.val()||{};
-        user={uid:fbUser.uid,name:d.name||fbUser.email.split('@')[0],email:fbUser.email,role:d.role||'buyer'};
+        user={uid:fbUser.uid,name:d.name||fbUser.email.split('@')[0],email:fbUser.email,role:d.role||'buyer',companyName:d.companyName||null};
         updateUserUI();
-        loadManagedStores();
-        checkAdminAccess();
       });
     } else {
       user = null;
@@ -3160,31 +3158,6 @@ async function submitWithdraw(){
   });
 
   // Notify store owner if agent
-  if(ctx.isAgent){
-    await db.ref('tradex_notifications/'+ctx.walletUid).push({
-      msg:`💸 ${user.name} (${ctx.role}) requested $${amount.toFixed(2)} from your store wallet. Pending admin approval.`,
-      type:'agent_withdrawal', at:new Date().toISOString(), read:false
-    });
-  }
-
-  btn.textContent='Submit Withdrawal Request'; btn.disabled=false;
-  closeModal('withdrawModal');
-  showToast('✅ Withdrawal submitted! Admin will process within 24–48 hrs.');
-  document.getElementById('wAccNum').value='';
-  document.getElementById('wAccName').value='';
-  document.getElementById('wAmount').value='';
-  withdrawContext = null;
-  if(!ctx.isAgent) loadWallet();
-}
-
-  // Notify admin
-  const who = ctx.isAgent ? `${user.name} (${ctx.role} at ${ctx.ownerName})` : user.name;
-  await db.ref('tradex_notifications/admin_alerts').push({
-    msg:`💸 $${amount.toFixed(2)} withdrawal from ${who}`,
-    at:new Date().toISOString(), read:false, type:'withdrawal_request'
-  });
-
-  // Notify store owner if an agent is withdrawing their funds
   if(ctx.isAgent){
     await db.ref('tradex_notifications/'+ctx.walletUid).push({
       msg:`💸 ${user.name} (${ctx.role}) requested $${amount.toFixed(2)} from your store wallet. Pending admin approval.`,
