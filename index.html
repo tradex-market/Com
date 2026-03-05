@@ -1728,49 +1728,50 @@ const ROLE_PERMISSIONS = {
     pct: 100,
     label: '👑 Store Owner',
     tasks: [
-      { icon: '🏷️', text: 'Add, edit & delete all listings', action: () => startSellingFlow() },
-      { icon: '📦', text: 'View & process all orders', action: () => { showSellerDash(); setTimeout(()=>sdtab('orders',null),300); } },
-      { icon: '👥', text: 'Manage & invite team members', action: () => { showSellerDash(); setTimeout(()=>sdtab('team',null),300); } },
-      { icon: '💬', text: 'View all customer messages', action: () => toggleChat() },
+      { icon: '🏷️', text: 'Add, edit & delete all listings',   action: () => startSellingFlow() },
+      { icon: '📦', text: 'View & process all orders',          action: () => goToSellerTab('orders') },
+      { icon: '👥', text: 'Manage & invite team members',       action: () => goToSellerTab('team') },
+      { icon: '💬', text: 'View all customer messages',         action: () => openChatPanel() },
       { icon: '💰', text: 'Full wallet access — withdraw 100%', action: () => openWithdrawModal() },
-      { icon: '📊', text: 'Full dashboard & analytics', action: () => showSellerDash() }
+      { icon: '📊', text: 'Full dashboard & analytics',         action: () => goToSellerTab('overview') }
     ]
   },
   manager: {
     pct: 25,
     label: '🧑‍💼 Store Manager',
     tasks: [
-      { icon: '🏷️', text: 'Add, edit & delete listings', action: () => startSellingFlow() },
-      { icon: '📦', text: 'View & process orders', action: () => { showSellerDash(); setTimeout(()=>sdtab('orders',null),300); } },
-      { icon: '👥', text: 'Manage team members', action: () => { showSellerDash(); setTimeout(()=>sdtab('team',null),300); } },
-      { icon: '💬', text: 'Reply to customer messages', action: () => toggleChat() },
-      { icon: '💰', text: 'Withdraw up to 25% of balance', action: () => openWithdrawModal() }
+      { icon: '🏷️', text: 'Add, edit & delete listings',        action: () => startSellingFlow() },
+      { icon: '📦', text: 'View & process orders',              action: () => goToSellerTab('orders') },
+      { icon: '👥', text: 'Manage team members',                action: () => goToSellerTab('team') },
+      { icon: '💬', text: 'Reply to customer messages',         action: () => openChatPanel() },
+      { icon: '💰', text: 'Withdraw up to 25% of balance',      action: () => openWithdrawModal() },
+      { icon: '📊', text: 'View store dashboard',               action: () => goToSellerTab('overview') }
     ]
   },
   listings: {
     pct: 15,
     label: '🏷️ Listings Handler',
     tasks: [
-      { icon: '➕', text: 'Add new product listings', action: () => startSellingFlow() },
-      { icon: '✏️', text: 'Edit existing listings', action: () => { showSellerDash(); setTimeout(()=>sdtab('listings',null),300); } },
-      { icon: '💰', text: 'Withdraw up to 15% of balance', action: () => openWithdrawModal() }
+      { icon: '➕', text: 'Add new product listings',           action: () => startSellingFlow() },
+      { icon: '✏️', text: 'Edit existing listings',             action: () => goToSellerTab('listings') },
+      { icon: '💰', text: 'Withdraw up to 15% of balance',      action: () => openWithdrawModal() }
     ]
   },
   orders: {
     pct: 10,
     label: '📦 Order Handler',
     tasks: [
-      { icon: '📋', text: 'View all orders', action: () => { showSellerDash(); setTimeout(()=>sdtab('orders',null),300); } },
-      { icon: '📦', text: 'Process & update order status', action: () => { showSellerDash(); setTimeout(()=>sdtab('orders',null),300); } },
-      { icon: '💰', text: 'Withdraw up to 10% of balance', action: () => openWithdrawModal() }
+      { icon: '📋', text: 'View all store orders',              action: () => goToSellerTab('orders') },
+      { icon: '📦', text: 'Process & update order status',      action: () => goToSellerTab('orders') },
+      { icon: '💰', text: 'Withdraw up to 10% of balance',      action: () => openWithdrawModal() }
     ]
   },
   support: {
     pct: 5,
     label: '💬 Customer Support',
     tasks: [
-      { icon: '💬', text: 'Reply to buyer messages', action: () => toggleChat() },
-      { icon: '💰', text: 'Withdraw up to 5% of balance', action: () => openWithdrawModal() }
+      { icon: '💬', text: 'Reply to buyer messages',            action: () => openChatPanel() },
+      { icon: '💰', text: 'Withdraw up to 5% of balance',       action: () => openWithdrawModal() }
     ]
   }
 };
@@ -1896,32 +1897,42 @@ function showOwnerCompanyPill() {
   }
 }
 
-function showSellerDash(){
+// Navigate to a seller dashboard tab — works for both owners and agents
+// Agents get their store's data shown, owners get their own
+function goToSellerTab(tab) {
   if(!user){openModal('authModal');showToast('🔐 Sign in first');return;}
-  
-  // If user is an agent with an active store, open the team panel instead
-  if(activeTeamStore && activeTeamStore.isAgent !== false && !activeTeamStore.isOwner){
-    openTeamPanel();
-    return;
-  }
-  
   showView('seller');
-  document.querySelectorAll('.dtab').forEach((b,i)=>b.classList.toggle('active',i===0));
-  ['overview','listings','orders','purchases','team','wallet'].forEach((t,i)=>{
+  document.querySelectorAll('.dtab').forEach(b=>b.classList.remove('active'));
+  ['overview','listings','orders','purchases','team','wallet'].forEach(t=>{
     const el=document.getElementById('sd-'+t);
-    if(el)el.style.display=i===0?'block':'none';
+    if(el) el.style.display = t===tab ? 'block' : 'none';
   });
-  // Load balance for overview banner
-  db.ref('tradex_wallets/'+user.uid).once('value').then(snap=>{
+  // Activate the right tab button
+  document.querySelectorAll('.dtab').forEach(b=>{
+    if(b.getAttribute('onclick') && b.getAttribute('onclick').includes("'"+tab+"'")) b.classList.add('active');
+  });
+
+  // Load the right wallet — owner's own, agent's store wallet
+  const walletUid = (activeTeamStore && !activeTeamStore.isOwner) ? activeTeamStore.sellerUid : user.uid;
+  db.ref('tradex_wallets/'+walletUid).once('value').then(snap=>{
     const w=snap.val()||{balance:0,pending:0};
     const ob=document.getElementById('overviewBal');
     const op=document.getElementById('overviewPending');
-    if(ob)ob.textContent='$'+(w.balance||0).toFixed(2);
-    if(op)op.textContent='Pending withdrawal: $'+(w.pending||0).toFixed(2);
+    if(ob) ob.textContent='$'+(w.balance||0).toFixed(2);
+    if(op) op.textContent='Pending: $'+(w.pending||0).toFixed(2);
   });
-  loadSellerListings();
-  loadFirebaseTeam();
-  loadOverviewStats();
+
+  if(tab==='overview')  loadOverviewStats();
+  if(tab==='listings')  loadSellerListings();
+  if(tab==='orders')    loadSellerOrders();
+  if(tab==='purchases') loadMyPurchases();
+  if(tab==='team')      { loadFirebaseTeam(); renderAgents(); }
+  if(tab==='wallet')    loadWallet();
+}
+
+function showSellerDash(){
+  if(!user){openModal('authModal');showToast('🔐 Sign in first');return;}
+  goToSellerTab('overview');
 }
 
 // Load real team members from Firebase
@@ -2405,38 +2416,42 @@ function openChat(chatKey) {
 }
 
 function loadChatMessages(chatKey) {
-  // Detach old listener
+  // Detach ALL old listeners before attaching a new one
   if (activeChatListener) {
-    db.ref('tradex_messages/' + activeChatListener).off();
+    db.ref('tradex_messages/' + activeChatListener).off('value');
+    activeChatListener = null;
   }
   activeChatListener = chatKey;
-  
+
   db.ref('tradex_messages/' + chatKey).on('value', snap => {
     const messagesDiv = document.getElementById('chatMessages');
     if (!messagesDiv) return;
+
+    // Safety: if a different chat is now active, ignore this event
+    if (activeChatListener !== chatKey) return;
+
     const messages = [];
-    
     if (snap.exists()) {
       snap.forEach(m => messages.push({ key: m.key, ...m.val() }));
     }
-    
     messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    
+
     if (!messages.length) {
       messagesDiv.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:.85rem;">Say hello! 👋</div>';
       return;
     }
-    
+
     messagesDiv.innerHTML = messages.map(msg => {
       const isMe = msg.senderUid === user.uid;
       return `<div style="display:flex;justify-content:${isMe?'flex-end':'flex-start'};margin-bottom:10px;">
         <div style="max-width:78%;background:${isMe?'var(--accent)':'var(--surface2)'};color:${isMe?'#fff':'var(--text)'};padding:10px 13px;border-radius:${isMe?'14px 14px 4px 14px':'14px 14px 14px 4px'};">
+          ${!isMe?`<div style="font-size:.7rem;font-weight:700;opacity:.7;margin-bottom:3px;">${msg.senderName||'User'}</div>`:''}
           <div style="font-size:.87rem;line-height:1.4;">${msg.message}</div>
           <div style="font-size:.68rem;opacity:.6;margin-top:3px;text-align:right;">${new Date(msg.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
         </div>
       </div>`;
     }).join('');
-    
+
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 }
@@ -2445,35 +2460,33 @@ function sendChatMessage() {
   const input = document.getElementById('chatInput');
   const message = input.value.trim();
   if (!message || !activeChat) return;
-  
+
   const msgData = {
     senderUid:  user.uid,
     senderName: user.name,
     message,
     timestamp:  new Date().toISOString()
   };
-  
+
   db.ref('tradex_messages/' + activeChat.key).push(msgData);
-  
+
   // iAmSeller = true if I am the store owner OR a team member of the store
   const sellerUid = getSellerIdentityUid();
   const iAmSeller = activeChat.sellerUid === sellerUid;
-  const currentUnread = activeChat.unreadCount || 0;
-  
-  // Unread goes to the OTHER party
-  // If I'm the seller side → unread for buyer
-  // If I'm the buyer → unread for store (sellerUid, so owner OR any agent can see it)
   const unreadFor = iAmSeller ? activeChat.buyerUid : activeChat.sellerUid;
-  
-  db.ref('tradex_chats/' + activeChat.key).update({
-    lastMessage:   message,
-    lastMessageAt: new Date().toISOString(),
-    unreadCount:   currentUnread + 1,
-    unreadFor
+
+  // Read the LIVE unread count — don't use stale activeChat.unreadCount
+  db.ref('tradex_chats/' + activeChat.key + '/unreadCount').once('value').then(snap => {
+    const currentUnread = snap.val() || 0;
+    db.ref('tradex_chats/' + activeChat.key).update({
+      lastMessage:   message,
+      lastMessageAt: new Date().toISOString(),
+      unreadCount:   currentUnread + 1,
+      unreadFor
+    });
   });
-  
+
   // Notify the other person
-  // If agent is replying → notify the buyer; don't notify the store owner (they work there)
   const recipientUid = iAmSeller ? activeChat.buyerUid : activeChat.sellerUid;
   if (recipientUid && recipientUid !== user.uid) {
     db.ref('tradex_notifications/' + recipientUid).push({
@@ -2484,7 +2497,7 @@ function sendChatMessage() {
       chatKey: activeChat.key
     });
   }
-  
+
   input.value = '';
 }
 
@@ -2492,9 +2505,12 @@ function closeActiveChat() {
   document.getElementById('activeChatView').style.display = 'none';
   const listWrap = document.getElementById('chatListWrap');
   if (listWrap) listWrap.style.display = 'flex';
+  // Detach listener BEFORE clearing activeChat
+  if (activeChatListener) {
+    db.ref('tradex_messages/' + activeChatListener).off('value');
+    activeChatListener = null;
+  }
   activeChat = null;
-  // Detach message listener
-  if (activeChatListener) { db.ref('tradex_messages/' + (activeChat?.key||'x')).off(); activeChatListener = null; }
 }
 
 // Start chat from product
@@ -3374,7 +3390,10 @@ function renderAdminList(all){
   if(!list.length){el.innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:40px;font-size:.88rem;">No requests found.</div>';return;}
   el.innerHTML=list.map(r=>`
     <div class="aw-card ${r.status}">
-      <span class="aw-status ${r.status}">${r.status.toUpperCase()}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span class="aw-status ${r.status}">${r.status.toUpperCase()}</span>
+        <span style="font-size:.72rem;color:rgba(255,255,255,.4);">🕐 ${r.submittedAt ? new Date(r.submittedAt).toLocaleString() : 'Unknown'}</span>
+      </div>
       <div class="aw-row"><span>Requested by</span><strong>${r.requesterName||r.sellerName} ${r.isAgent?'('+r.agentRole+')':''}</strong></div>
       <div class="aw-row"><span>Store</span><strong>${r.sellerName}</strong></div>
       <div class="aw-row"><span>Amount</span><strong style="color:#4ade80;font-size:1.05rem;">$${parseFloat(r.amount).toFixed(2)}</strong></div>
@@ -3385,7 +3404,10 @@ function renderAdminList(all){
       ${r.status==='pending'?`<div class="aw-actions">
         <button class="aw-btn aw-approve" onclick="adminApprove('${r.key}','${r.sellerUid}',${r.amount},'${r.requesterUid||r.sellerUid}','${(r.requesterName||r.sellerName).replace(/'/g,'')}')">✅ Approve & Pay</button>
         <button class="aw-btn aw-reject" onclick="adminReject('${r.key}','${r.sellerUid}',${r.amount},'${r.requesterUid||r.sellerUid}','${(r.requesterName||r.sellerName).replace(/'/g,'')}')">❌ Reject</button>
-      </div>`:`<div style="font-size:.78rem;color:rgba(255,255,255,.35);margin-top:10px;">${r.processedAt?'Processed: '+new Date(r.processedAt).toLocaleString():''}</div>`}
+      </div>`:`<div style="font-size:.75rem;color:rgba(255,255,255,.35);margin-top:10px;border-top:1px solid rgba(255,255,255,.08);padding-top:8px;">
+        ${r.processedAt ? `✔ Processed: ${new Date(r.processedAt).toLocaleString()} by ${r.processedBy||'admin'}` : ''}
+        ${r.rejectionReason ? `<br>Reason: ${r.rejectionReason}` : ''}
+      </div>`}
     </div>`).join('');
 }
 
