@@ -2924,145 +2924,167 @@ function loadWallet(){
   });
 }
 
+// Stores the resolved wallet context so submitWithdraw knows whose wallet to use
+let withdrawContext = null;
+
 async function openWithdrawModal(){
   if(!user){openModal('authModal');return;}
-  
-  // Check if user is an agent and show their withdrawal limit
-  const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
-  const agentLookup = await db.ref(`tradex_agent_lookup/${emailKey}`).once('value');
-  
-  let limitMessage = '';
-  if (agentLookup.exists()) {
-    let maxPercent = 0;
-    let roleName = '';
-    const roleNames = {manager:'Store Manager (25%)',listings:'Listings Handler (15%)',orders:'Order Handler (10%)',support:'Customer Support (5%)'};
-    
-    agentLookup.forEach(inv => {
-      const invite = inv.val();
-      if (invite && invite.status === 'accepted') {
-        if (invite.role === 'manager') maxPercent = Math.max(maxPercent, 25);
-        else if (invite.role === 'listings') maxPercent = Math.max(maxPercent, 15);
-        else if (invite.role === 'orders') maxPercent = Math.max(maxPercent, 10);
-        else if (invite.role === 'support') maxPercent = Math.max(maxPercent, 5);
-        if (maxPercent > 0) roleName = roleNames[invite.role] || invite.role;
-      }
-    });
-    
-    if (maxPercent > 0) {
-      limitMessage = `<div style="background:#fff3cd;border:1.5px solid #ffca2c;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.82rem;color:#856404;">
-        ⚠️ As a <strong>${roleName}</strong>, you can withdraw up to <strong>${maxPercent}%</strong> of your earnings. Only the account owner can withdraw 100%.
-      </div>`;
+  withdrawContext = null;
+
+  const PCTS = {manager:0.25, listings:0.15, orders:0.10, support:0.05};
+  const ROLE_LABELS = {manager:'Store Manager (25%)', listings:'Listings Handler (15%)', orders:'Order Handler (10%)', support:'Customer Support (5%)'};
+
+  // Is this user a store owner?
+  const userSnap = await db.ref('tradex_users/'+user.uid).once('value');
+  const userData = userSnap.val()||{};
+  const isOwner = !!(userData.companyName || userData.role==='seller' || userData.role==='both');
+
+  if(isOwner){
+    // Owner withdraws from their OWN wallet at 100%
+    const wSnap = await db.ref('tradex_wallets/'+user.uid).once('value');
+    const bal = (wSnap.val()||{}).balance||0;
+    withdrawContext = {walletUid:user.uid, ownerName:userData.companyName||user.name, maxPercent:1.0, role:'owner', isAgent:false, balance:bal};
+    document.getElementById('wAvailLabel').textContent = '$'+bal.toFixed(2);
+    document.getElementById('withdrawLimitMessage').innerHTML = '';
+
+  } else {
+    // Agent: look up which store they work for and load THAT store's wallet
+    const emailKey = user.email.replace(/\./g,'_').replace(/@/g,'__at__');
+    const agentSnap = await db.ref('tradex_agent_lookup/'+emailKey).once('value');
+
+    let bestInvite=null, bestPct=0;
+    if(agentSnap.exists()){
+      agentSnap.forEach(c=>{
+        const inv=c.val();
+        if(inv && inv.status==='accepted'){
+          const p=PCTS[inv.role]||0.05;
+          if(p>bestPct){bestPct=p; bestInvite=inv;}
+        }
+      });
     }
+
+    if(!bestInvite){
+      showToast('⚠️ No active store found. Accept a store invitation first.');
+      return;
+    }
+
+    // Load the STORE OWNER's wallet — not the agent's own
+    const ownerWalletSnap = await db.ref('tradex_wallets/'+bestInvite.sellerUid).once('value');
+    const ownerBal = (ownerWalletSnap.val()||{}).balance||0;
+    const myLimit = ownerBal * bestPct;
+
+    withdrawContext = {
+      walletUid: bestInvite.sellerUid,
+      ownerName: bestInvite.sellerName,
+      maxPercent: bestPct,
+      role: bestInvite.role,
+      isAgent: true,
+      balance: ownerBal,
+      myLimit: myLimit,
+      invite: bestInvite
+    };
+
+    document.getElementById('wAvailLabel').textContent =
+      '$'+myLimit.toFixed(2)+' (your '+Math.round(bestPct*100)+'% of $'+ownerBal.toFixed(2)+')';
+
+    document.getElementById('withdrawLimitMessage').innerHTML = `
+      <div style="background:#e8f5e9;border:1.5px solid #2d7a4f;border-radius:8px;padding:11px 13px;margin-bottom:14px;font-size:.83rem;color:#1a4d30;line-height:1.6;">
+        🏪 Store: <strong>${bestInvite.sellerName}</strong><br>
+        💼 Your role: <strong>${ROLE_LABELS[bestInvite.role]||bestInvite.role}</strong><br>
+        💰 Store balance: <strong>$${ownerBal.toFixed(2)}</strong> — Your withdrawal limit: <strong>$${myLimit.toFixed(2)}</strong>
+      </div>`;
   }
-  
-  // Pre-fill available balance
-  db.ref('tradex_wallets/'+user.uid).once('value').then(snap=>{
-    const w=snap.val()||{balance:0};
-    const el=document.getElementById('wAvailLabel');
-    if(el)el.textContent='$'+(w.balance||0).toFixed(2);
-    
-    // Show limit message if agent
-    const limitEl = document.getElementById('withdrawLimitMessage');
-    if (limitEl) limitEl.innerHTML = limitMessage;
-  });
+
   openModal('withdrawModal');
 }
 
-function checkAccNum(){
-  const v=document.getElementById('wAccNum').value.trim();
-  document.getElementById('wErr').textContent='';
-}
-function checkWithdrawAmount(){document.getElementById('wErr').textContent='';}
+function checkAccNum(){ document.getElementById('wErr').textContent=''; }
+function checkWithdrawAmount(){ document.getElementById('wErr').textContent=''; }
 
 async function submitWithdraw(){
   if(!user){openModal('authModal');return;}
-  const accNum=document.getElementById('wAccNum').value.trim();
-  const accName=document.getElementById('wAccName').value.trim();
-  const amount=parseFloat(document.getElementById('wAmount').value);
-  const err=document.getElementById('wErr');
-  if(!accNum){err.textContent='Please enter your account number.';return;}
+  if(!withdrawContext){showToast('⚠️ Please reopen the withdrawal window.');return;}
+
+  const accNum  = document.getElementById('wAccNum').value.trim();
+  const accName = document.getElementById('wAccName').value.trim();
+  const amount  = parseFloat(document.getElementById('wAmount').value);
+  const err     = document.getElementById('wErr');
+
+  if(!accNum) {err.textContent='Please enter your account number.';return;}
   if(!accName){err.textContent='Please enter the account name.';return;}
   if(!amount||amount<=0){err.textContent='Please enter a valid amount.';return;}
-  
-  // Get current balance
-  const wSnap=await db.ref('tradex_wallets/'+user.uid).once('value');
-  const bal=(wSnap.val()||{}).balance||0;
-  
-  if(amount>bal){err.textContent=`Insufficient balance. Available: $${bal.toFixed(2)}`;return;}
-  
-  // Owner check: if user has a company name or has listings, they are an owner — full 100%
-  // Agent limit only applies if they are purely a team member with no own store
-  const userSnap = await db.ref('tradex_users/'+user.uid).once('value');
-  const userData = userSnap.val()||{};
-  const isOwner = !!(userData.companyName || userData.role === 'seller' || userData.role === 'both');
-  
-  let maxPercent = 1.0; // 100% default
-  let agentRole = '';
-  let isAgentOnly = false;
-  
-  if (!isOwner) {
-    // Check if they have any accepted agent invites
-    const emailKey = user.email.replace(/\./g,'_').replace(/@/g,'__at__');
-    const agentLookup = await db.ref(`tradex_agent_lookup/${emailKey}`).once('value');
-    if (agentLookup.exists()) {
-      let roleLimit = 0;
-      agentLookup.forEach(inv => {
-        const invite = inv.val();
-        if (invite && invite.status === 'accepted') {
-          isAgentOnly = true;
-          agentRole = invite.role;
-          const pcts = {manager:0.25, listings:0.15, orders:0.10, support:0.05};
-          roleLimit = Math.max(roleLimit, pcts[invite.role]||0.05);
-        }
-      });
-      if (isAgentOnly) maxPercent = roleLimit;
-    }
-  }
-  
-  const maxAllowed = bal * maxPercent;
-  if (amount > maxAllowed) {
-    const roleNames = {manager:'Store Manager',listings:'Listings Handler',orders:'Order Handler',support:'Customer Support'};
-    err.textContent = isAgentOnly
-      ? `As ${roleNames[agentRole]||'team member'}, your limit is ${Math.round(maxPercent*100)}% = $${maxAllowed.toFixed(2)}`
-      : `Insufficient balance. Available: $${bal.toFixed(2)}`;
+
+  const ctx = withdrawContext;
+  const maxAllowed = ctx.isAgent ? ctx.myLimit : ctx.balance;
+
+  if(amount > maxAllowed){
+    err.textContent = ctx.isAgent
+      ? `Your limit is $${maxAllowed.toFixed(2)} (${Math.round(ctx.maxPercent*100)}% of store's $${ctx.balance.toFixed(2)})`
+      : `Insufficient balance. Available: $${ctx.balance.toFixed(2)}`;
     return;
   }
-  
-  const btn=document.getElementById('wSubmitBtn');
-  btn.textContent='Submitting...';btn.disabled=true;
-  
-  const req={
-    sellerUid:user.uid, sellerName:user.name, sellerEmail:user.email,
+
+  // Re-verify live balance hasn't dropped since modal opened
+  const freshSnap = await db.ref('tradex_wallets/'+ctx.walletUid).once('value');
+  const freshBal  = (freshSnap.val()||{}).balance||0;
+  const freshMax  = ctx.isAgent ? freshBal*ctx.maxPercent : freshBal;
+  if(amount > freshMax){
+    err.textContent = 'Balance has changed. Current limit: $'+freshMax.toFixed(2);
+    return;
+  }
+
+  const btn = document.getElementById('wSubmitBtn');
+  btn.textContent='Submitting...'; btn.disabled=true;
+
+  // Record withdrawal — walletUid is the store owner's UID
+  const req = {
+    requesterUid:   user.uid,
+    requesterName:  user.name,
+    requesterEmail: user.email,
+    sellerUid:      ctx.walletUid,   // whose wallet gets debited
+    sellerName:     ctx.ownerName,
     accNum, accName, amount,
-    bank:'Atlantas Union Bank',
-    status:'pending',
-    submittedAt:new Date().toISOString(),
-    isAgent: isAgentOnly,
-    agentRole: isAgentOnly ? agentRole : null,
-    withdrawalPercent: Math.round(maxPercent*100)
+    bank: 'Atlantas Union Bank',
+    status: 'pending',
+    submittedAt: new Date().toISOString(),
+    isAgent: ctx.isAgent,
+    agentRole: ctx.isAgent ? ctx.role : null,
+    withdrawalPercent: Math.round(ctx.maxPercent*100)
   };
-  
+
   await db.ref('tradex_withdrawals').push(req);
-  await db.ref('tradex_wallets/'+user.uid).transaction(w=>{
-    if(!w)return w;
-    w.balance=(w.balance||0)-amount;
-    w.pending=(w.pending||0)+amount;
+
+  // Deduct from the CORRECT wallet (store owner's if agent)
+  await db.ref('tradex_wallets/'+ctx.walletUid).transaction(w=>{
+    if(!w) return w;
+    w.balance = Math.max(0,(w.balance||0)-amount);
+    w.pending = (w.pending||0)+amount;
     return w;
   });
-  
+
   // Notify admin
+  const who = ctx.isAgent ? `${user.name} (${ctx.role} at ${ctx.ownerName})` : user.name;
   await db.ref('tradex_notifications/admin_alerts').push({
-    msg:`💸 New withdrawal request: $${amount.toFixed(2)} from ${user.name} (${user.email})`,
+    msg:`💸 $${amount.toFixed(2)} withdrawal from ${who}`,
     at:new Date().toISOString(), read:false, type:'withdrawal_request'
   });
-  
-  btn.textContent='Submit Withdrawal Request';btn.disabled=false;
+
+  // Notify store owner if an agent is withdrawing their funds
+  if(ctx.isAgent){
+    await db.ref('tradex_notifications/'+ctx.walletUid).push({
+      msg:`💸 ${user.name} (${ctx.role}) requested $${amount.toFixed(2)} from your store wallet. Pending admin approval.`,
+      type:'agent_withdrawal', at:new Date().toISOString(), read:false
+    });
+  }
+
+  btn.textContent='Submit Withdrawal Request'; btn.disabled=false;
   closeModal('withdrawModal');
-  showToast('✅ Withdrawal request submitted! Admin will process within 24–48 hrs.');
+  showToast('✅ Withdrawal submitted! Admin will process within 24–48 hrs.');
   document.getElementById('wAccNum').value='';
   document.getElementById('wAccName').value='';
   document.getElementById('wAmount').value='';
-  loadWallet();
+  withdrawContext = null;
+  if(!ctx.isAgent) loadWallet();
 }
 
 function noAccountClick(){
@@ -3265,15 +3287,16 @@ function renderAdminList(all){
   el.innerHTML=list.map(r=>`
     <div class="aw-card ${r.status}">
       <span class="aw-status ${r.status}">${r.status.toUpperCase()}</span>
-      <div class="aw-row"><span>Seller</span><strong>${r.sellerName} (${r.sellerEmail})</strong></div>
+      <div class="aw-row"><span>Requested by</span><strong>${r.requesterName||r.sellerName} ${r.isAgent?'('+r.agentRole+')':''}</strong></div>
+      <div class="aw-row"><span>Store</span><strong>${r.sellerName}</strong></div>
       <div class="aw-row"><span>Amount</span><strong style="color:#4ade80;font-size:1.05rem;">$${parseFloat(r.amount).toFixed(2)}</strong></div>
       <div class="aw-row"><span>Bank</span><strong>${r.bank}</strong></div>
       <div class="aw-row"><span>Account No.</span><strong>${r.accNum}</strong></div>
       <div class="aw-row"><span>Account Name</span><strong>${r.accName}</strong></div>
       <div class="aw-row"><span>Submitted</span><strong>${new Date(r.submittedAt).toLocaleString()}</strong></div>
       ${r.status==='pending'?`<div class="aw-actions">
-        <button class="aw-btn aw-approve" onclick="adminApprove('${r.key}','${r.sellerUid}',${r.amount})">✅ Approve & Pay</button>
-        <button class="aw-btn aw-reject" onclick="adminReject('${r.key}','${r.sellerUid}',${r.amount})">❌ Reject</button>
+        <button class="aw-btn aw-approve" onclick="adminApprove('${r.key}','${r.sellerUid}',${r.amount},'${r.requesterUid||r.sellerUid}','${(r.requesterName||r.sellerName).replace(/'/g,'')}')">✅ Approve & Pay</button>
+        <button class="aw-btn aw-reject" onclick="adminReject('${r.key}','${r.sellerUid}',${r.amount},'${r.requesterUid||r.sellerUid}','${(r.requesterName||r.sellerName).replace(/'/g,'')}')">❌ Reject</button>
       </div>`:`<div style="font-size:.78rem;color:rgba(255,255,255,.35);margin-top:10px;">${r.processedAt?'Processed: '+new Date(r.processedAt).toLocaleString():''}</div>`}
     </div>`).join('');
 }
@@ -3292,39 +3315,50 @@ function filterAdmin(f){
   });
 }
 
-async function adminApprove(key,sellerUid,amount){
-  if(!confirm(`Approve payment of $${parseFloat(amount).toFixed(2)} to seller? This will mark it as paid.`))return;
+async function adminApprove(key,sellerUid,amount,requesterUid,requesterName){
+  const rUid = requesterUid||sellerUid; // who gets notified/paid
+  if(!confirm(`Approve $${parseFloat(amount).toFixed(2)} withdrawal by ${requesterName||'seller'}?`))return;
   await db.ref('tradex_withdrawals/'+key).update({status:'approved',processedAt:new Date().toISOString(),processedBy:user.email});
-  // Move from pending back but mark paid (remove from pending balance)
+  // Move from pending on the wallet that was debited (sellerUid's wallet)
   await db.ref('tradex_wallets/'+sellerUid).transaction(w=>{
     if(!w)return w;
     w.pending=Math.max(0,(w.pending||0)-parseFloat(amount));
     return w;
   });
-  // Notify seller via Firebase
-  await db.ref('tradex_notifications/'+sellerUid).push({
-    msg:`💰 Your withdrawal of $${parseFloat(amount).toFixed(2)} has been approved and paid to your Atlantas Bank account!`,
+  // Notify the requester (agent or owner)
+  await db.ref('tradex_notifications/'+rUid).push({
+    msg:`✅ Your withdrawal of $${parseFloat(amount).toFixed(2)} has been approved and paid to your Atlantas Bank account!`,
     type:'withdraw_approved',at:new Date().toISOString(),read:false
   });
+  // Also notify store owner if it was an agent request
+  if(rUid !== sellerUid){
+    await db.ref('tradex_notifications/'+sellerUid).push({
+      msg:`✅ Team member ${requesterName||'an agent'}'s withdrawal of $${parseFloat(amount).toFixed(2)} has been approved.`,
+      type:'withdraw_approved',at:new Date().toISOString(),read:false
+    });
+  }
   showToast('✅ Withdrawal approved & marked as paid!');
 }
 
-async function adminReject(key,sellerUid,amount){
-  const reason=prompt('Reason for rejection (seller will see this):');
-  if(!reason)return;
-  await db.ref('tradex_withdrawals/'+key).update({status:'rejected',processedAt:new Date().toISOString(),processedBy:user.email,rejectionReason:reason});
-  // Refund balance
+async function adminReject(key,sellerUid,amount,requesterUid,requesterName){
+  const rUid = requesterUid||sellerUid;
+  const reason=prompt('Reason for rejection (requester will see this):');
+  if(reason===null)return;
+  const r=reason||'No reason given';
+  await db.ref('tradex_withdrawals/'+key).update({status:'rejected',processedAt:new Date().toISOString(),processedBy:user.email,rejectionReason:r});
+  // Refund to the wallet that was debited
   await db.ref('tradex_wallets/'+sellerUid).transaction(w=>{
     if(!w)return w;
     w.balance=(w.balance||0)+parseFloat(amount);
     w.pending=Math.max(0,(w.pending||0)-parseFloat(amount));
     return w;
   });
-  await db.ref('tradex_notifications/'+sellerUid).push({
-    msg:`⚠️ Your withdrawal of $${parseFloat(amount).toFixed(2)} was rejected. Reason: ${reason}. Funds have been returned to your balance.`,
+  // Notify requester
+  await db.ref('tradex_notifications/'+rUid).push({
+    msg:`⚠️ Your withdrawal of $${parseFloat(amount).toFixed(2)} was rejected. Reason: ${r}. Funds have been returned to the store balance.`,
     type:'withdraw_rejected',at:new Date().toISOString(),read:false
   });
-  showToast('❌ Withdrawal rejected. Balance refunded to seller.');
+  showToast('❌ Withdrawal rejected. Balance refunded.');
 }
 
 // ── ADMIN ORDER MANAGEMENT ────────────────────────────────────────────────────
