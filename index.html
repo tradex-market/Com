@@ -1728,50 +1728,60 @@ const ROLE_PERMISSIONS = {
     pct: 100,
     label: '👑 Store Owner',
     tasks: [
-      { icon: '🏷️', text: 'Add, edit & delete all listings',   action: () => startSellingFlow() },
-      { icon: '📦', text: 'View & process all orders',          action: () => goToSellerTab('orders') },
-      { icon: '👥', text: 'Manage & invite team members',       action: () => goToSellerTab('team') },
-      { icon: '💬', text: 'View all customer messages',         action: () => openChatPanel() },
-      { icon: '💰', text: 'Full wallet access — withdraw 100%', action: () => openWithdrawModal() },
-      { icon: '📊', text: 'Full dashboard & analytics',         action: () => goToSellerTab('overview') }
+      { icon: '📊', text: 'Full dashboard & analytics',          action: () => goToSellerTab('overview') },
+      { icon: '🏷️', text: 'Add, edit & delete all listings',    action: () => startSellingFlow() },
+      { icon: '📋', text: 'View & manage all listings',          action: () => goToSellerTab('listings') },
+      { icon: '📦', text: 'View & process all orders',           action: () => goToSellerTab('orders') },
+      { icon: '👥', text: 'Manage & invite team members',        action: () => goToSellerTab('team') },
+      { icon: '💬', text: 'View all customer messages',          action: () => openChatPanel() },
+      { icon: '💰', text: 'Wallet & full withdrawal access',     action: () => goToSellerTab('wallet') },
+      { icon: '🛒', text: 'View my purchases',                   action: () => goToSellerTab('purchases') }
     ]
   },
   manager: {
     pct: 25,
     label: '🧑‍💼 Store Manager',
     tasks: [
+      { icon: '📊', text: 'Store overview & stats',              action: () => goToSellerTab('overview') },
       { icon: '🏷️', text: 'Add, edit & delete listings',        action: () => startSellingFlow() },
-      { icon: '📦', text: 'View & process orders',              action: () => goToSellerTab('orders') },
-      { icon: '👥', text: 'Manage team members',                action: () => goToSellerTab('team') },
-      { icon: '💬', text: 'Reply to customer messages',         action: () => openChatPanel() },
-      { icon: '💰', text: 'Withdraw up to 25% of balance',      action: () => openWithdrawModal() },
-      { icon: '📊', text: 'View store dashboard',               action: () => goToSellerTab('overview') }
+      { icon: '📋', text: 'Browse & manage all listings',        action: () => goToSellerTab('listings') },
+      { icon: '📦', text: 'View & process all orders',           action: () => goToSellerTab('orders') },
+      { icon: '👥', text: 'View team members',                   action: () => goToSellerTab('team') },
+      { icon: '💬', text: 'Reply to all customer messages',      action: () => openChatPanel() },
+      { icon: '💰', text: 'Wallet & withdraw up to 25%',         action: () => goToSellerTab('wallet') }
     ]
   },
   listings: {
     pct: 15,
     label: '🏷️ Listings Handler',
     tasks: [
-      { icon: '➕', text: 'Add new product listings',           action: () => startSellingFlow() },
-      { icon: '✏️', text: 'Edit existing listings',             action: () => goToSellerTab('listings') },
-      { icon: '💰', text: 'Withdraw up to 15% of balance',      action: () => openWithdrawModal() }
+      { icon: '➕', text: 'Add new product listings',            action: () => startSellingFlow() },
+      { icon: '✏️', text: 'Edit & manage existing listings',     action: () => goToSellerTab('listings') },
+      { icon: '📊', text: 'View store overview',                 action: () => goToSellerTab('overview') },
+      { icon: '💬', text: 'View customer enquiries',             action: () => openChatPanel() },
+      { icon: '💰', text: 'Wallet & withdraw up to 15%',         action: () => goToSellerTab('wallet') }
     ]
   },
   orders: {
     pct: 10,
     label: '📦 Order Handler',
     tasks: [
-      { icon: '📋', text: 'View all store orders',              action: () => goToSellerTab('orders') },
-      { icon: '📦', text: 'Process & update order status',      action: () => goToSellerTab('orders') },
-      { icon: '💰', text: 'Withdraw up to 10% of balance',      action: () => openWithdrawModal() }
+      { icon: '📦', text: 'View & process all store orders',     action: () => goToSellerTab('orders') },
+      { icon: '📊', text: 'View store overview',                 action: () => goToSellerTab('overview') },
+      { icon: '💬', text: 'Message buyers about orders',         action: () => openChatPanel() },
+      { icon: '📋', text: 'Browse listings (read-only)',         action: () => goToSellerTab('listings') },
+      { icon: '💰', text: 'Wallet & withdraw up to 10%',         action: () => goToSellerTab('wallet') }
     ]
   },
   support: {
     pct: 5,
     label: '💬 Customer Support',
     tasks: [
-      { icon: '💬', text: 'Reply to buyer messages',            action: () => openChatPanel() },
-      { icon: '💰', text: 'Withdraw up to 5% of balance',       action: () => openWithdrawModal() }
+      { icon: '💬', text: 'Reply to all buyer messages',         action: () => openChatPanel() },
+      { icon: '📊', text: 'View store overview',                 action: () => goToSellerTab('overview') },
+      { icon: '📋', text: 'Browse listings (to help buyers)',    action: () => goToSellerTab('listings') },
+      { icon: '📦', text: 'View orders (read-only)',             action: () => goToSellerTab('orders') },
+      { icon: '💰', text: 'Wallet & withdraw up to 5%',          action: () => goToSellerTab('wallet') }
     ]
   }
 };
@@ -1935,10 +1945,12 @@ function showSellerDash(){
   goToSellerTab('overview');
 }
 
-// Load real team members from Firebase
+// Load real team members from Firebase — uses store owner's UID for agents
 function loadFirebaseTeam() {
   if (!user) return;
-  db.ref(`tradex_invites/${user.uid}`).on('value', snap => {
+  const teamOwnerUid = getStoreUid(); // for agents this is the store owner, for owners it's themselves
+
+  _listen('team_list', db.ref(`tradex_invites/${teamOwnerUid}`), snap => {
     const realAgents = [];
     if (snap.exists()) {
       snap.forEach(c => {
@@ -1960,9 +1972,8 @@ function loadFirebaseTeam() {
     }
     agents = realAgents;
     renderAgents();
-    // Update counts
-    const e1=document.getElementById('tmcnt'); if(e1)e1.textContent=realAgents.length;
-    const e2=document.getElementById('tcnt');  if(e2)e2.textContent=realAgents.length;
+    const e1=document.getElementById('tmcnt'); if(e1) e1.textContent=realAgents.length;
+    const e2=document.getElementById('tcnt');  if(e2) e2.textContent=realAgents.length;
   });
 }
 
@@ -2554,49 +2565,82 @@ function startChat(productId, sellerUid, sellerName, productTitle) {
   });
 }
 
+// ── STORE CONTEXT HELPERS ─────────────────────────────────────────────────────
+function getStoreUid() {
+  if (activeTeamStore && !activeTeamStore.isOwner && activeTeamStore.sellerUid)
+    return activeTeamStore.sellerUid;
+  return user ? user.uid : null;
+}
+
+// Listener registry: key → { ref, handler }
+const _reg = {};
+function _listen(key, ref, cb) {
+  // Detach old listener on same key first
+  if (_reg[key]) {
+    try { _reg[key].ref.off('value', _reg[key].handler); } catch(e){}
+  }
+  const handler = ref.on('value', cb);
+  _reg[key] = { ref, handler };
+}
+function _unlisten(key) {
+  if (_reg[key]) {
+    try { _reg[key].ref.off('value', _reg[key].handler); } catch(e){}
+    delete _reg[key];
+  }
+}
+
 // ── SELLER LISTINGS MANAGEMENT ────────────────────────────────────────────────
 function loadSellerListings() {
   if (!user) return;
-  
-  db.ref('tradex_listings').orderByChild('sellerUid').equalTo(user.uid).on('value', snap => {
+  const storeUid = getStoreUid();
+  const isAgent  = storeUid !== user.uid;
+
+  const grid  = document.getElementById('myListingsGrid');
+  const cntEl = document.getElementById('myListingsCount');
+  if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">Loading listings...</div>';
+
+  const canDelete = !isAgent || (activeTeamStore && ['manager','listings'].includes(activeTeamStore.role));
+  const canEdit   = !isAgent || (activeTeamStore && ['manager','listings'].includes(activeTeamStore.role));
+
+  _listen('listings', db.ref('tradex_listings').orderByChild('sellerUid').equalTo(storeUid), snap => {
     const listings = [];
-    
-    if (snap.exists()) {
-      snap.forEach(c => {
-        listings.push({ key: c.key, ...c.val() });
-      });
-    }
-    
-    document.getElementById('myListingsCount').textContent = listings.length;
-    
-    const grid = document.getElementById('myListingsGrid');
-    
+    if (snap.exists()) snap.forEach(c => listings.push({ key: c.key, ...c.val() }));
+    if (cntEl) cntEl.textContent = listings.length;
+
     if (!listings.length) {
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:.88rem;">No listings yet. Create your first one!</div>';
+      if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);font-size:.88rem;">No listings yet.</div>';
       return;
     }
-    
-    listings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
-    grid.innerHTML = listings.map(listing => `
+    listings.sort((a, b) => new Date(b.createdAt||0) - new Date(a.createdAt||0));
+
+    if (grid) grid.innerHTML = listings.map(l => `
       <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;overflow:hidden;">
         <div style="width:100%;aspect-ratio:4/3;background:var(--surface2);position:relative;">
-          ${listing.mainImage ? `<img src="${listing.mainImage}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;opacity:.2;">📷</div>'}
-          <span style="position:absolute;top:8px;right:8px;background:${listing.status==='active'?'#2d7a4f':'#999'};color:#fff;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:700;text-transform:uppercase;">${listing.status}</span>
+          ${l.mainImage ? `<img src="${l.mainImage}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;opacity:.2;">📷</div>'}
+          <span style="position:absolute;top:8px;right:8px;background:${l.status==='active'?'#2d7a4f':'#999'};color:#fff;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:700;text-transform:uppercase;">${l.status||'active'}</span>
+          ${l.qty!=null?`<span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.55);color:#fff;padding:3px 8px;border-radius:20px;font-size:.68rem;">Qty: ${l.qty}</span>`:''}
         </div>
         <div style="padding:14px;">
-          <div style="font-weight:600;font-size:.92rem;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${listing.title}</div>
-          <div style="color:var(--accent);font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;margin-bottom:8px;">$${listing.price.toFixed(2)}</div>
-          <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">${listing.category} • ${listing.condition}</div>
-          <div style="display:flex;gap:8px;">
-            <button onclick="previewListing('${listing.key}')" style="flex:1;padding:8px;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">👁️ Preview</button>
-            <button onclick="editListing('${listing.key}')" style="flex:1;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">✏️ Edit</button>
-            <button onclick="deleteListing('${listing.key}','${listing.title.replace(/'/g,"\\'")}',this)" style="padding:8px 10px;background:#ffeaea;color:#c0392b;border:1.5px solid #f5c6c6;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">🗑️</button>
+          <div style="font-weight:600;font-size:.92rem;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.title||'Untitled'}</div>
+          <div style="color:var(--accent);font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;margin-bottom:6px;">$${parseFloat(l.price||0).toFixed(2)}</div>
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">${l.category||''} ${l.condition?'• '+l.condition:''}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="previewListing('${l.key}')" style="flex:1;min-width:60px;padding:8px;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">👁️ Preview</button>
+            ${canEdit?`<button onclick="editListing('${l.key}')" style="flex:1;min-width:60px;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">✏️ Edit</button>`:''}
+            ${canDelete?`<button onclick="deleteListing('${l.key}','${(l.title||'').replace(/'/g,"\\'")}',this)" style="padding:8px 10px;background:#ffeaea;color:#c0392b;border:1.5px solid #f5c6c6;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;">🗑️</button>`:''}
           </div>
+          ${canEdit?(l.status==='active'
+            ?`<button onclick="toggleListingStatus('${l.key}','inactive')" style="margin-top:8px;width:100%;padding:7px;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;font-size:.79rem;cursor:pointer;">⏸️ Pause Listing</button>`
+            :`<button onclick="toggleListingStatus('${l.key}','active')" style="margin-top:8px;width:100%;padding:7px;background:#e8f5e9;color:var(--green);border:1.5px solid #b7dfb7;border-radius:6px;font-size:.79rem;font-weight:600;cursor:pointer;">▶️ Activate Listing</button>`)
+          :''}
         </div>
-      </div>
-    `).join('');
+      </div>`).join('');
   });
+}
+
+function toggleListingStatus(key, newStatus) {
+  db.ref('tradex_listings/'+key).update({status:newStatus})
+    .then(()=>showToast(newStatus==='active'?'✅ Listing activated!':'⏸️ Listing paused.'));
 }
 
 function previewListing(listingKey) {
@@ -2936,29 +2980,41 @@ function sdtab(tab,btn){
     const ts=['overview','listings','orders','purchases','team','wallet'];
     b.classList.toggle('active',ts[i]===tab);
   });
-  if(tab==='team')renderAgents();
-  if(tab==='wallet')loadWallet();
-  if(tab==='orders')loadSellerOrders();
+  if(tab==='team')    { loadFirebaseTeam(); renderAgents(); }
+  if(tab==='wallet')  loadWallet();
+  if(tab==='orders')  loadSellerOrders();
+  if(tab==='listings')loadSellerListings();
   if(tab==='purchases')loadMyPurchases();
   if(tab==='overview')loadOverviewStats();
 }
 
 // ── WALLET ────────────────────────────────────────────────────────────────────
 function loadWallet(){
-  if(!user)return;
-  db.ref('tradex_wallets/'+user.uid).on('value',snap=>{
+  if(!user) return;
+  const storeUid = getStoreUid();
+  const isAgent  = storeUid !== user.uid;
+
+  _listen('wallet_bal', db.ref('tradex_wallets/'+storeUid), snap=>{
     const w=snap.val()||{balance:0,totalEarned:0,pending:0};
     const bal=document.getElementById('walletBal');
     const pend=document.getElementById('walletPending');
     const wAvail=document.getElementById('wAvailLabel');
-    if(bal)bal.textContent='$'+(w.balance||0).toFixed(2);
-    if(pend)pend.textContent=`Pending: $${(w.pending||0).toFixed(2)} · Total Earned: $${(w.totalEarned||0).toFixed(2)}`;
-    if(wAvail)wAvail.textContent='$'+(w.balance||0).toFixed(2);
+    if(bal) bal.textContent='$'+(w.balance||0).toFixed(2);
+    if(pend) pend.textContent=`Total Earned: $${(w.totalEarned||0).toFixed(2)} · Pending: $${(w.pending||0).toFixed(2)}`;
+    if(wAvail) wAvail.textContent='$'+(w.balance||0).toFixed(2);
   });
-  // Load withdraw history
-  db.ref('tradex_withdrawals').orderByChild('sellerUid').equalTo(user.uid).on('value',snap=>{
-    const el=document.getElementById('withdrawHistory');if(!el)return;
-    if(!snap.exists()){el.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:16px 0;text-align:center;">No withdrawals yet.</div>';return;}
+
+  // History: agents see their own requests; owners see all against their store
+  const histRef = isAgent
+    ? db.ref('tradex_withdrawals').orderByChild('requesterUid').equalTo(user.uid)
+    : db.ref('tradex_withdrawals').orderByChild('sellerUid').equalTo(user.uid);
+
+  _listen('wallet_hist', histRef, snap=>{
+    const el=document.getElementById('withdrawHistory'); if(!el) return;
+    if(!snap.exists()){
+      el.innerHTML='<div style="color:var(--muted);font-size:.85rem;padding:16px 0;text-align:center;">No withdrawals yet.</div>';
+      return;
+    }
     const rows=[];
     snap.forEach(c=>{rows.push({key:c.key,...c.val()});});
     rows.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
@@ -2966,7 +3022,8 @@ function loadWallet(){
       <div class="wh-row">
         <div>
           <div style="font-weight:600;font-size:.88rem;">$${parseFloat(r.amount).toFixed(2)}</div>
-          <div style="font-size:.75rem;color:var(--muted);">${r.accNum} · ${new Date(r.submittedAt).toLocaleDateString()}</div>
+          <div style="font-size:.75rem;color:var(--muted);">${r.accNum} · ${new Date(r.submittedAt).toLocaleString()}</div>
+          ${r.rejectionReason?`<div style="font-size:.72rem;color:#c0392b;margin-top:2px;">Reason: ${r.rejectionReason}</div>`:''}
         </div>
         <span class="wh-status ${r.status==='approved'?'wh-a':r.status==='rejected'?'wh-r':'wh-p'}">${r.status}</span>
       </div>`).join('');
@@ -3197,22 +3254,26 @@ function noAccountClick(){
 }
 
 function loadOverviewStats(){
-  if(!user)return;
-  // Live listing count
-  db.ref('tradex_listings').orderByChild('sellerUid').equalTo(user.uid).on('value', snap=>{
-    const count = snap.exists() ? snap.numChildren() : 0;
-    const el = document.getElementById('overviewListingCount');
-    if(el) el.textContent = count;
-  });
-  // Orders + revenue + recent orders preview
-  db.ref('tradex_orders').on('value', snap=>{
+  if(!user) return;
+  const storeUid = getStoreUid();
+
+  // Listing count
+  _listen('ov_listings',
+    db.ref('tradex_listings').orderByChild('sellerUid').equalTo(storeUid),
+    snap => {
+      const el = document.getElementById('overviewListingCount');
+      if(el) el.textContent = snap.exists() ? snap.numChildren() : 0;
+    }
+  );
+
+  // Orders, revenue, recent
+  _listen('ov_orders', db.ref('tradex_orders'), snap => {
     let orderCount=0, revenue=0;
     const recent=[];
     if(snap.exists()){
       snap.forEach(c=>{
-        const o=c.val();
-        if(!o) return;
-        const myItems=(o.items||[]).filter(i=>i.sellerUid===user.uid);
+        const o=c.val(); if(!o) return;
+        const myItems=(o.items||[]).filter(i=>i.sellerUid===storeUid);
         if(!myItems.length) return;
         orderCount++;
         const myTotal=myItems.reduce((s,i)=>s+(i.price*i.qty),0);
@@ -3222,57 +3283,52 @@ function loadOverviewStats(){
     }
     const oe=document.getElementById('overviewOrderCount');
     const re=document.getElementById('overviewRevenue');
-    if(oe)oe.textContent=orderCount;
-    if(re)re.textContent='$'+(revenue>=1000?(revenue/1000).toFixed(1)+'k':revenue.toFixed(0));
-    
-    // Recent orders in overview (last 3)
+    if(oe) oe.textContent=orderCount;
+    if(re) re.textContent='$'+(revenue>=1000?(revenue/1000).toFixed(1)+'k':revenue.toFixed(0));
     const rEl=document.getElementById('overviewRecentOrders');
-    if(rEl){
-      if(!recent.length){
-        rEl.innerHTML='<div style="color:var(--muted);font-size:.84rem;padding:16px 0;text-align:center;">No orders yet.</div>';
-      } else {
-        recent.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
-        rEl.innerHTML='<div class="ol">'+recent.slice(0,4).map(o=>`
-          <div class="or">
-            <div class="oi">📦</div>
-            <div class="oin">
-              <div class="oname">${o.myItems[0]?.name||'Order'}${o.myItems.length>1?' +'+( o.myItems.length-1)+' more':''}</div>
-              <div class="ometa">${o.buyerName||'Buyer'} · ${formatTimeAgo(o.submittedAt)}</div>
-            </div>
-            <div>
-              <div class="oprice">$${o.myTotal.toFixed(2)}</div>
-              <span class="ls ${o.status==='approved'?'lsa':'lsp'}" style="font-size:.67rem;">${o.status==='approved'?'Approved':'Pending'}</span>
-            </div>
-          </div>`).join('')+'</div>';
-      }
+    if(!rEl) return;
+    if(!recent.length){
+      rEl.innerHTML='<div style="color:var(--muted);font-size:.84rem;padding:16px 0;text-align:center;">No orders yet.</div>';
+      return;
     }
+    recent.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+    rEl.innerHTML='<div class="ol">'+recent.slice(0,4).map(o=>`
+      <div class="or">
+        <div class="oi">📦</div>
+        <div class="oin">
+          <div class="oname">${o.myItems[0]?.name||'Order'}${o.myItems.length>1?' +'+(o.myItems.length-1)+' more':''}</div>
+          <div class="ometa">${o.buyerName||'Buyer'} · ${formatTimeAgo(o.submittedAt)}</div>
+        </div>
+        <div>
+          <div class="oprice">$${o.myTotal.toFixed(2)}</div>
+          <span class="ls ${o.status==='approved'?'lsa':'lsp'}" style="font-size:.67rem;">${o.status==='approved'?'Approved':'Pending'}</span>
+        </div>
+      </div>`).join('')+'</div>';
   });
 }
 
 // ── SELLER REAL ORDERS ────────────────────────────────────────────────────────
 function loadSellerOrders(){
-  if(!user)return;
+  if(!user) return;
+  const storeUid = getStoreUid();
   const el=document.getElementById('sellerOrdersList');
-  if(!el)return;
+  if(!el) return;
   el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);">Loading orders...</div>';
-  
-  db.ref('tradex_orders').on('value', snap=>{
+
+  _listen('seller_orders', db.ref('tradex_orders'), snap=>{
     const myOrders=[];
     if(snap.exists()){
       snap.forEach(c=>{
-        const o=c.val();
-        if(!o)return;
-        const myItems=(o.items||[]).filter(i=>i.sellerUid===user.uid);
-        if(myItems.length) myOrders.push({key:c.key,...o, myItems, myTotal:myItems.reduce((s,i)=>s+(i.price*i.qty),0)});
+        const o=c.val(); if(!o) return;
+        const myItems=(o.items||[]).filter(i=>i.sellerUid===storeUid);
+        if(myItems.length) myOrders.push({key:c.key,...o,myItems,myTotal:myItems.reduce((s,i)=>s+(i.price*i.qty),0)});
       });
     }
     myOrders.sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
-    
     if(!myOrders.length){
       el.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);font-size:.88rem;">No orders yet. When buyers purchase your items, they\'ll appear here.</div>';
       return;
     }
-    
     el.innerHTML=myOrders.map(o=>{
       const statusColor={approved:'var(--green)',pending_admin_auth:'#f0a500',rejected:'#c0392b',completed:'var(--green)'}[o.status]||'var(--muted)';
       const statusLabel={approved:'✅ Approved — Ship Now',pending_admin_auth:'⏳ Awaiting Admin Auth',rejected:'❌ Rejected',completed:'📦 Completed'}[o.status]||o.status;
@@ -3285,11 +3341,15 @@ function loadSellerOrders(){
           <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--accent);">$${o.myTotal.toFixed(2)}</div>
         </div>
         <div style="margin-bottom:8px;">${o.myItems.map(i=>`<div style="font-size:.83rem;display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
-          <span>${i.name} ×${i.qty}</span><span style="font-weight:600;">$${(i.price*i.qty).toFixed(2)}</span>
+          <span>${i.name}  ×${i.qty}</span><span style="font-weight:600;">$${(i.price*i.qty).toFixed(2)}</span>
         </div>`).join('')}</div>
-        <div style="font-size:.79rem;color:var(--muted);">👤 Buyer: <strong style="color:var(--text);">${o.buyerName||'Unknown'}</strong>
-          ${o.status==='approved'?`<span style="margin-left:10px;background:#e8f5e9;color:var(--green);padding:2px 8px;border-radius:10px;font-weight:600;font-size:.72rem;">Ready to Ship</span>`:''}
+        <div style="font-size:.79rem;color:var(--muted);">
+          👤 <strong style="color:var(--text);">${o.buyerName||'Unknown'}</strong>
+          ${o.buyerEmail?`<span style="margin-left:6px;opacity:.7;">${o.buyerEmail}</span>`:''}
+          ${o.buyerPhone?`<span style="margin-left:6px;">📞 ${o.buyerPhone}</span>`:''}
         </div>
+        ${o.billingAddress?`<div style="font-size:.76rem;color:var(--muted);margin-top:3px;">📍 ${[o.billingAddress.street,o.billingAddress.city,o.billingAddress.country].filter(Boolean).join(', ')}</div>`:''}
+        ${o.status==='approved'?`<div style="margin-top:8px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:.77rem;color:var(--green);font-weight:600;">📦 Ready to Ship — fulfil this order now</div>`:''}
       </div>`;
     }).join('');
   });
