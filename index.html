@@ -1849,21 +1849,34 @@ function updateUserUI(){
   document.getElementById('userNav').style.display='flex';
   
   if(user.email===ADMIN_EMAIL){
-    const sellerLinks=document.querySelectorAll('#userNav a[onclick*="showSellerDash"], #userNav a[onclick*="addListing"]');
-    sellerLinks.forEach(link=>link.style.display='none');
+    document.querySelectorAll('#userNav a[onclick*="showSellerDash"], #userNav a[onclick*="addListing"]').forEach(l=>l.style.display='none');
     const cartBtn=document.getElementById('cartButton');
     if(cartBtn)cartBtn.style.display='none';
     showView('admin');
     loadAdminPanel();
   } else {
-    const sellerLinks=document.querySelectorAll('#userNav a[onclick*="showSellerDash"], #userNav a[onclick*="startSellingFlow"]');
-    sellerLinks.forEach(link=>link.style.display='block');
-    const cartBtn=document.getElementById('cartButton');
-    if(cartBtn)cartBtn.style.display='block';
-    // Show owner company pill if they have a company name
-    if (user.companyName) showOwnerCompanyPill();
+    // Check for active agent invites FIRST — this takes priority over own store
+    loadManagedStores();
+    checkAdminAccess();
   }
   loadNotifications();
+}
+
+function applyAgentMode(stores) {
+  // Agent mode: hide own seller dashboard and add listing from nav dropdown
+  const dashLink = document.querySelector('#userDropdown a[onclick*="showSellerDash"]');
+  const listingLink = document.querySelector('#userDropdown a[onclick*="startSellingFlow"]');
+  if(dashLink) dashLink.style.display = 'none';
+  if(listingLink) listingLink.style.display = 'none';
+}
+
+function applyOwnerMode() {
+  // Owner mode: show own seller dashboard and add listing in nav
+  const dashLink = document.querySelector('#userDropdown a[onclick*="showSellerDash"]');
+  const listingLink = document.querySelector('#userDropdown a[onclick*="startSellingFlow"]');
+  if(dashLink) dashLink.style.display = 'block';
+  if(listingLink) listingLink.style.display = 'block';
+  if(user.companyName) showOwnerCompanyPill();
 }
 
 function showOwnerCompanyPill() {
@@ -1887,10 +1900,16 @@ function showOwnerCompanyPill() {
 
 function showSellerDash(){
   if(!user){openModal('authModal');showToast('🔐 Sign in first');return;}
+  
+  // If user is an agent with an active store, open the team panel instead
+  if(activeTeamStore && activeTeamStore.isAgent !== false && !activeTeamStore.isOwner){
+    openTeamPanel();
+    return;
+  }
+  
   showView('seller');
-  // activate overview tab
   document.querySelectorAll('.dtab').forEach((b,i)=>b.classList.toggle('active',i===0));
-  ['overview','listings','orders','team','wallet'].forEach((t,i)=>{
+  ['overview','listings','orders','purchases','team','wallet'].forEach((t,i)=>{
     const el=document.getElementById('sd-'+t);
     if(el)el.style.display=i===0?'block':'none';
   });
@@ -2827,16 +2846,23 @@ function loadManagedStores() {
   if (!user) return;
   const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
   db.ref(`tradex_agent_lookup/${emailKey}`).on('value', snap => {
-    if (!snap.exists()) return;
     const stores = [];
-    snap.forEach(c => {
-      const inv = c.val();
-      if (inv && inv.status === 'accepted') stores.push({...inv, key: c.key});
-    });
-    if (!stores.length) return;
-    renderManagedStores(stores);
-    // Show the team pill for the first (most recent) accepted store
-    if (stores.length > 0) showTeamContextPill(stores[0]);
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const inv = c.val();
+        if (inv && inv.status === 'accepted') stores.push({...inv, key: c.key});
+      });
+    }
+
+    if (stores.length > 0) {
+      // AGENT MODE: has accepted job — hide own seller platform
+      applyAgentMode(stores);
+      renderManagedStores(stores);
+      showTeamContextPill(stores[0]);
+    } else {
+      // OWNER MODE: no accepted jobs — show own seller platform
+      applyOwnerMode();
+    }
   });
 }
 
@@ -2934,41 +2960,24 @@ async function openWithdrawModal(){
   const PCTS = {manager:0.25, listings:0.15, orders:0.10, support:0.05};
   const ROLE_LABELS = {manager:'Store Manager (25%)', listings:'Listings Handler (15%)', orders:'Order Handler (10%)', support:'Customer Support (5%)'};
 
-  // Is this user a store owner?
-  const userSnap = await db.ref('tradex_users/'+user.uid).once('value');
-  const userData = userSnap.val()||{};
-  const isOwner = !!(userData.companyName || userData.role==='seller' || userData.role==='both');
+  // *** ALWAYS check agent invites FIRST ***
+  // A user who accepted a job works under that store — even if they also have their own store
+  const emailKey = user.email.replace(/\./g,'_').replace(/@/g,'__at__');
+  const agentSnap = await db.ref('tradex_agent_lookup/'+emailKey).once('value');
 
-  if(isOwner){
-    // Owner withdraws from their OWN wallet at 100%
-    const wSnap = await db.ref('tradex_wallets/'+user.uid).once('value');
-    const bal = (wSnap.val()||{}).balance||0;
-    withdrawContext = {walletUid:user.uid, ownerName:userData.companyName||user.name, maxPercent:1.0, role:'owner', isAgent:false, balance:bal};
-    document.getElementById('wAvailLabel').textContent = '$'+bal.toFixed(2);
-    document.getElementById('withdrawLimitMessage').innerHTML = '';
+  let bestInvite=null, bestPct=0;
+  if(agentSnap.exists()){
+    agentSnap.forEach(c=>{
+      const inv=c.val();
+      if(inv && inv.status==='accepted'){
+        const p=PCTS[inv.role]||0.05;
+        if(p>bestPct){bestPct=p; bestInvite=inv;}
+      }
+    });
+  }
 
-  } else {
-    // Agent: look up which store they work for and load THAT store's wallet
-    const emailKey = user.email.replace(/\./g,'_').replace(/@/g,'__at__');
-    const agentSnap = await db.ref('tradex_agent_lookup/'+emailKey).once('value');
-
-    let bestInvite=null, bestPct=0;
-    if(agentSnap.exists()){
-      agentSnap.forEach(c=>{
-        const inv=c.val();
-        if(inv && inv.status==='accepted'){
-          const p=PCTS[inv.role]||0.05;
-          if(p>bestPct){bestPct=p; bestInvite=inv;}
-        }
-      });
-    }
-
-    if(!bestInvite){
-      showToast('⚠️ No active store found. Accept a store invitation first.');
-      return;
-    }
-
-    // Load the STORE OWNER's wallet — not the agent's own
+  if(bestInvite){
+    // AGENT MODE — load the STORE OWNER's wallet, not the agent's own
     const ownerWalletSnap = await db.ref('tradex_wallets/'+bestInvite.sellerUid).once('value');
     const ownerBal = (ownerWalletSnap.val()||{}).balance||0;
     const myLimit = ownerBal * bestPct;
@@ -2991,8 +3000,19 @@ async function openWithdrawModal(){
       <div style="background:#e8f5e9;border:1.5px solid #2d7a4f;border-radius:8px;padding:11px 13px;margin-bottom:14px;font-size:.83rem;color:#1a4d30;line-height:1.6;">
         🏪 Store: <strong>${bestInvite.sellerName}</strong><br>
         💼 Your role: <strong>${ROLE_LABELS[bestInvite.role]||bestInvite.role}</strong><br>
-        💰 Store balance: <strong>$${ownerBal.toFixed(2)}</strong> — Your withdrawal limit: <strong>$${myLimit.toFixed(2)}</strong>
+        💰 Store balance: <strong>$${ownerBal.toFixed(2)}</strong> — Your limit: <strong>$${myLimit.toFixed(2)}</strong>
       </div>`;
+
+  } else {
+    // OWNER MODE — no active agent invite, use own wallet at 100%
+    const userSnap = await db.ref('tradex_users/'+user.uid).once('value');
+    const userData = userSnap.val()||{};
+    const wSnap = await db.ref('tradex_wallets/'+user.uid).once('value');
+    const bal = (wSnap.val()||{}).balance||0;
+
+    withdrawContext = {walletUid:user.uid, ownerName:userData.companyName||user.name, maxPercent:1.0, role:'owner', isAgent:false, balance:bal};
+    document.getElementById('wAvailLabel').textContent = '$'+bal.toFixed(2);
+    document.getElementById('withdrawLimitMessage').innerHTML = '';
   }
 
   openModal('withdrawModal');
