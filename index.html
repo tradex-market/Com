@@ -2210,6 +2210,16 @@ let activeChat = null;
 let userChats = [];
 let activeChatListener = null;
 
+// Returns the UID that represents "the seller" for chat purposes.
+// For store owners and regular sellers → their own UID
+// For team members/agents → the store owner's UID (so they see the store's conversations)
+function getSellerIdentityUid() {
+  if (activeTeamStore && !activeTeamStore.isOwner && activeTeamStore.sellerUid) {
+    return activeTeamStore.sellerUid;
+  }
+  return user ? user.uid : null;
+}
+
 function openChatPanel() {
   const panel = document.getElementById('chatPanel');
   panel.style.display = 'flex';
@@ -2220,15 +2230,14 @@ function openChatPanel() {
     return;
   }
   
-  // Load chats and auto-open any unread conversation
   document.getElementById('chatModeToggle').style.display = 'block';
   loadChatsAndJumpToUnread();
 }
 
 function loadChatsAndJumpToUnread() {
-  // Check both seller and buyer chats, find the one with the most recent unread
+  const sellerUid = getSellerIdentityUid();
   const promises = [
-    db.ref('tradex_chats').orderByChild('sellerUid').equalTo(user.uid).once('value'),
+    db.ref('tradex_chats').orderByChild('sellerUid').equalTo(sellerUid).once('value'),
     db.ref('tradex_chats').orderByChild('buyerUid').equalTo(user.uid).once('value')
   ];
   
@@ -2241,13 +2250,13 @@ function loadChatsAndJumpToUnread() {
       if (!snap.exists()) return;
       snap.forEach(c => {
         const chat = { key: c.key, ...c.val() };
-        if (chat.unreadCount > 0) {
+        // Unread means: unreadFor matches the sellerUid (store) or user.uid (buyer)
+        const isUnread = mode === 'seller'
+          ? (chat.unreadCount > 0 && (chat.unreadFor === sellerUid || chat.unreadFor === user.uid))
+          : (chat.unreadCount > 0 && chat.unreadFor === user.uid);
+        if (isUnread) {
           const t = chat.lastMessageAt || chat.createdAt || '';
-          if (!bestChat || t > bestTime) {
-            bestChat = chat;
-            bestMode = mode;
-            bestTime = t;
-          }
+          if (!bestChat || t > bestTime) { bestChat = chat; bestMode = mode; bestTime = t; }
         }
       });
     };
@@ -2256,10 +2265,9 @@ function loadChatsAndJumpToUnread() {
     check(buyerSnap, 'buyer');
     
     if (bestChat) {
-      // Jump straight to the unread conversation
       currentChatMode = bestMode;
       const sellerBtn = document.getElementById('sellerChatBtn');
-      const buyerBtn = document.getElementById('buyerChatBtn');
+      const buyerBtn  = document.getElementById('buyerChatBtn');
       if (sellerBtn && buyerBtn) {
         sellerBtn.style.background = bestMode === 'seller' ? 'var(--surface)' : 'transparent';
         sellerBtn.style.color = bestMode === 'seller' ? 'var(--text)' : 'var(--muted)';
@@ -2284,24 +2292,15 @@ function toggleChat() {
 
 function switchChatMode(mode) {
   currentChatMode = mode;
-  document.getElementById('sellerChatBtn').classList.toggle('active', mode === 'seller');
-  document.getElementById('buyerChatBtn').classList.toggle('active', mode === 'buyer');
-  
-  // Update button styles
   const sellerBtn = document.getElementById('sellerChatBtn');
-  const buyerBtn = document.getElementById('buyerChatBtn');
+  const buyerBtn  = document.getElementById('buyerChatBtn');
   if (mode === 'seller') {
-    sellerBtn.style.background = 'var(--surface)';
-    sellerBtn.style.color = 'var(--text)';
-    buyerBtn.style.background = 'transparent';
-    buyerBtn.style.color = 'var(--muted)';
+    sellerBtn.style.background = 'var(--surface)';   sellerBtn.style.color = 'var(--text)';
+    buyerBtn.style.background  = 'transparent';       buyerBtn.style.color  = 'var(--muted)';
   } else {
-    buyerBtn.style.background = 'var(--surface)';
-    buyerBtn.style.color = 'var(--text)';
-    sellerBtn.style.background = 'transparent';
-    sellerBtn.style.color = 'var(--muted)';
+    buyerBtn.style.background  = 'var(--surface)';   buyerBtn.style.color  = 'var(--text)';
+    sellerBtn.style.background = 'transparent';       sellerBtn.style.color = 'var(--muted)';
   }
-  
   loadChats();
 }
 
@@ -2311,19 +2310,19 @@ function loadChats() {
     return;
   }
   
-  // Show toggle for users who can be both seller and buyer
   document.getElementById('chatModeToggle').style.display = 'block';
-  
   const chatList = document.getElementById('chatList');
   chatList.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:.85rem;">Loading chats...</div>';
   
+  const sellerUid = getSellerIdentityUid();
+
   if (currentChatMode === 'seller') {
-    // Load chats where user is the seller (buyers messaging them)
-    db.ref('tradex_chats').orderByChild('sellerUid').equalTo(user.uid).on('value', snap => {
+    // Load all chats for this store (own UID or store owner's UID if agent)
+    db.ref('tradex_chats').orderByChild('sellerUid').equalTo(sellerUid).on('value', snap => {
       renderChatList(snap);
     });
   } else {
-    // Load chats where user is the buyer (messaging sellers)
+    // Load chats where this user is the buyer
     db.ref('tradex_chats').orderByChild('buyerUid').equalTo(user.uid).on('value', snap => {
       renderChatList(snap);
     });
@@ -2346,10 +2345,13 @@ function renderChatList(snap) {
   
   chats.sort((a, b) => new Date(b.lastMessageAt||b.createdAt) - new Date(a.lastMessageAt||a.createdAt));
   
+  const sellerUid = getSellerIdentityUid();
+  
   chatList.innerHTML = chats.map(chat => {
     const otherPerson = currentChatMode === 'seller' ? chat.buyerName : chat.sellerName;
-    // Only show unread badge if THIS user is the intended recipient
-    const unread = (chat.unreadFor === user.uid) ? (chat.unreadCount || 0) : 0;
+    // Show unread badge if this user OR their store is the recipient
+    const isRecipient = chat.unreadFor === user.uid || chat.unreadFor === sellerUid;
+    const unread = isRecipient ? (chat.unreadCount || 0) : 0;
     const timeStr = chat.lastMessageAt ? formatTimeAgo(chat.lastMessageAt) : '';
     
     return `<div onclick="openChat('${chat.key}')" style="padding:13px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;${unread>0?'background:var(--al);':''}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${unread>0?'var(--al)':'transparent'}'">
@@ -2365,8 +2367,11 @@ function renderChatList(snap) {
     </div>`;
   }).join('');
   
-  // Badge: only count chats where this user is the unread recipient
-  const totalUnread = chats.reduce((sum, c) => sum + ((c.unreadFor === user.uid) ? (c.unreadCount||0) : 0), 0);
+  // Badge total — count chats where this user or their store is the unread recipient
+  const totalUnread = chats.reduce((sum, c) => {
+    const mine = c.unreadFor === user.uid || c.unreadFor === sellerUid;
+    return sum + (mine ? (c.unreadCount||0) : 0);
+  }, 0);
   const badge = document.getElementById('chatBadge');
   if (totalUnread > 0) {
     badge.textContent = totalUnread > 9 ? '9+' : totalUnread;
@@ -2393,8 +2398,9 @@ function openChat(chatKey) {
     
     loadChatMessages(chatKey);
     
-    // Clear unread only if this user is the intended recipient
-    if (chat.unreadFor === user.uid) {
+    // Clear unread if this user (or their store) is the intended recipient
+    const sellerUid = getSellerIdentityUid();
+    if (chat.unreadFor === user.uid || chat.unreadFor === sellerUid) {
       db.ref('tradex_chats/' + chatKey).update({ unreadCount: 0, unreadFor: null });
     }
   });
@@ -2443,37 +2449,40 @@ function sendChatMessage() {
   if (!message || !activeChat) return;
   
   const msgData = {
-    senderUid: user.uid,
+    senderUid:  user.uid,
     senderName: user.name,
     message,
-    timestamp: new Date().toISOString()
+    timestamp:  new Date().toISOString()
   };
   
   db.ref('tradex_messages/' + activeChat.key).push(msgData);
   
-  // Only the OTHER person's unread count goes up
-  // If I'm the buyer messaging the seller → seller's unread goes up
-  // If I'm the seller messaging the buyer → buyer's unread goes up
-  // We track this as a single unreadCount on the chat, but only increment
-  // when the sender is NOT the one who would see it as "seller"
-  const iAmSeller = activeChat.sellerUid === user.uid;
+  // iAmSeller = true if I am the store owner OR a team member of the store
+  const sellerUid = getSellerIdentityUid();
+  const iAmSeller = activeChat.sellerUid === sellerUid;
   const currentUnread = activeChat.unreadCount || 0;
   
+  // Unread goes to the OTHER party
+  // If I'm the seller side → unread for buyer
+  // If I'm the buyer → unread for store (sellerUid, so owner OR any agent can see it)
+  const unreadFor = iAmSeller ? activeChat.buyerUid : activeChat.sellerUid;
+  
   db.ref('tradex_chats/' + activeChat.key).update({
-    lastMessage: message,
+    lastMessage:   message,
     lastMessageAt: new Date().toISOString(),
-    unreadCount: currentUnread + 1,
-    unreadFor: iAmSeller ? activeChat.buyerUid : activeChat.sellerUid
+    unreadCount:   currentUnread + 1,
+    unreadFor
   });
   
-  // Send notification to the other person
+  // Notify the other person
+  // If agent is replying → notify the buyer; don't notify the store owner (they work there)
   const recipientUid = iAmSeller ? activeChat.buyerUid : activeChat.sellerUid;
-  if (recipientUid) {
+  if (recipientUid && recipientUid !== user.uid) {
     db.ref('tradex_notifications/' + recipientUid).push({
-      type: 'message',
-      msg: `💬 New message from ${user.name}: "${message.length > 40 ? message.slice(0,40)+'…' : message}"`,
-      at: new Date().toISOString(),
-      read: false,
+      type:    'message',
+      msg:     `💬 ${user.name}: "${message.length > 40 ? message.slice(0,40)+'…' : message}"`,
+      at:      new Date().toISOString(),
+      read:    false,
       chatKey: activeChat.key
     });
   }
@@ -2960,8 +2969,7 @@ async function openWithdrawModal(){
   const PCTS = {manager:0.25, listings:0.15, orders:0.10, support:0.05};
   const ROLE_LABELS = {manager:'Store Manager (25%)', listings:'Listings Handler (15%)', orders:'Order Handler (10%)', support:'Customer Support (5%)'};
 
-  // *** ALWAYS check agent invites FIRST ***
-  // A user who accepted a job works under that store — even if they also have their own store
+  // Always check agent invites FIRST
   const emailKey = user.email.replace(/\./g,'_').replace(/@/g,'__at__');
   const agentSnap = await db.ref('tradex_agent_lookup/'+emailKey).once('value');
 
@@ -2977,38 +2985,68 @@ async function openWithdrawModal(){
   }
 
   if(bestInvite){
-    // AGENT MODE — load the STORE OWNER's wallet, not the agent's own
-    const ownerWalletSnap = await db.ref('tradex_wallets/'+bestInvite.sellerUid).once('value');
-    const ownerBal = (ownerWalletSnap.val()||{}).balance||0;
-    const myLimit = ownerBal * bestPct;
+    const storeUid = bestInvite.sellerUid;
+
+    // Load store wallet — need totalEarned (lifetime), not just current balance
+    const [ownerWalletSnap, agentRecordSnap] = await Promise.all([
+      db.ref('tradex_wallets/'+storeUid).once('value'),
+      db.ref(`tradex_agent_withdrawals/${storeUid}/${user.uid}`).once('value')
+    ]);
+
+    const ownerWallet    = ownerWalletSnap.val()||{balance:0,totalEarned:0};
+    const storeBal       = ownerWallet.balance||0;
+    const totalEarned    = ownerWallet.totalEarned||0;
+
+    // Lifetime entitlement = percentage of everything the store has EVER earned
+    const lifetimeEntitlement = totalEarned * bestPct;
+
+    // What this agent has already taken (approved withdrawals) + what's still pending
+    const agentRecord   = agentRecordSnap.val()||{totalWithdrawn:0, pendingAmount:0};
+    const withdrawn     = agentRecord.totalWithdrawn||0;
+    const pending       = agentRecord.pendingAmount||0;
+    const alreadyTaken  = withdrawn + pending;
+
+    // Remaining entitlement they haven't touched yet
+    const remainingEntitlement = Math.max(0, lifetimeEntitlement - alreadyTaken);
+    // Also can't take more than what's actually in the store right now
+    const myLimit = Math.min(remainingEntitlement, storeBal);
 
     withdrawContext = {
-      walletUid: bestInvite.sellerUid,
+      walletUid: storeUid,
       ownerName: bestInvite.sellerName,
       maxPercent: bestPct,
       role: bestInvite.role,
       isAgent: true,
-      balance: ownerBal,
-      myLimit: myLimit,
+      balance: storeBal,
+      totalEarned,
+      lifetimeEntitlement,
+      alreadyTaken,
+      myLimit,
       invite: bestInvite
     };
 
+    const pct = Math.round(bestPct*100);
     document.getElementById('wAvailLabel').textContent =
-      '$'+myLimit.toFixed(2)+' (your '+Math.round(bestPct*100)+'% of $'+ownerBal.toFixed(2)+')';
+      myLimit>0 ? `$${myLimit.toFixed(2)} available` : '$0.00 — limit reached';
 
     document.getElementById('withdrawLimitMessage').innerHTML = `
-      <div style="background:#e8f5e9;border:1.5px solid #2d7a4f;border-radius:8px;padding:11px 13px;margin-bottom:14px;font-size:.83rem;color:#1a4d30;line-height:1.6;">
-        🏪 Store: <strong>${bestInvite.sellerName}</strong><br>
-        💼 Your role: <strong>${ROLE_LABELS[bestInvite.role]||bestInvite.role}</strong><br>
-        💰 Store balance: <strong>$${ownerBal.toFixed(2)}</strong> — Your limit: <strong>$${myLimit.toFixed(2)}</strong>
-      </div>`;
+      <div style="background:#e8f5e9;border:1.5px solid #2d7a4f;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:.82rem;color:#1a4d30;line-height:1.9;">
+        🏪 <strong>${bestInvite.sellerName}</strong> &nbsp;·&nbsp; 💼 ${ROLE_LABELS[bestInvite.role]||bestInvite.role}<br>
+        📈 Store total earned: <strong>$${totalEarned.toFixed(2)}</strong><br>
+        🎯 Your ${pct}% lifetime entitlement: <strong>$${lifetimeEntitlement.toFixed(2)}</strong><br>
+        ✅ Already withdrawn + pending: <strong>$${alreadyTaken.toFixed(2)}</strong><br>
+        💰 You can withdraw: <strong style="font-size:.95rem;color:${myLimit>0?'#1a7a4f':'#c0392b'};">$${myLimit.toFixed(2)}</strong>
+      </div>
+      ${myLimit<=0?`<div style="background:#fdecea;border:1.5px solid #f87171;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.82rem;color:#c0392b;">
+        ⛔ You've withdrawn your full ${pct}% share of current earnings. Your limit grows automatically as the store earns more.
+      </div>`:''}`;
 
   } else {
-    // OWNER MODE — no active agent invite, use own wallet at 100%
+    // OWNER MODE
     const userSnap = await db.ref('tradex_users/'+user.uid).once('value');
-    const userData = userSnap.val()||{};
-    const wSnap = await db.ref('tradex_wallets/'+user.uid).once('value');
-    const bal = (wSnap.val()||{}).balance||0;
+    const userData  = userSnap.val()||{};
+    const wSnap     = await db.ref('tradex_wallets/'+user.uid).once('value');
+    const bal       = (wSnap.val()||{}).balance||0;
 
     withdrawContext = {walletUid:user.uid, ownerName:userData.companyName||user.name, maxPercent:1.0, role:'owner', isAgent:false, balance:bal};
     document.getElementById('wAvailLabel').textContent = '$'+bal.toFixed(2);
@@ -3037,50 +3075,107 @@ async function submitWithdraw(){
   const ctx = withdrawContext;
   const maxAllowed = ctx.isAgent ? ctx.myLimit : ctx.balance;
 
+  if(maxAllowed <= 0 && ctx.isAgent){
+    err.textContent = `You've already withdrawn your full entitlement of $${ctx.lifetimeEntitlement.toFixed(2)}.`;
+    return;
+  }
+
   if(amount > maxAllowed){
     err.textContent = ctx.isAgent
-      ? `Your limit is $${maxAllowed.toFixed(2)} (${Math.round(ctx.maxPercent*100)}% of store's $${ctx.balance.toFixed(2)})`
+      ? `Max you can withdraw is $${maxAllowed.toFixed(2)}`
       : `Insufficient balance. Available: $${ctx.balance.toFixed(2)}`;
     return;
   }
 
-  // Re-verify live balance hasn't dropped since modal opened
-  const freshSnap = await db.ref('tradex_wallets/'+ctx.walletUid).once('value');
-  const freshBal  = (freshSnap.val()||{}).balance||0;
-  const freshMax  = ctx.isAgent ? freshBal*ctx.maxPercent : freshBal;
-  if(amount > freshMax){
-    err.textContent = 'Balance has changed. Current limit: $'+freshMax.toFixed(2);
-    return;
+  // Re-verify live — re-check entitlement hasn't been eaten by a concurrent request
+  if(ctx.isAgent){
+    const [freshWallet, freshRecord] = await Promise.all([
+      db.ref('tradex_wallets/'+ctx.walletUid).once('value'),
+      db.ref(`tradex_agent_withdrawals/${ctx.walletUid}/${user.uid}`).once('value')
+    ]);
+    const freshBal       = (freshWallet.val()||{}).balance||0;
+    const freshEarned    = (freshWallet.val()||{}).totalEarned||0;
+    const freshRecord_   = freshRecord.val()||{totalWithdrawn:0,pendingAmount:0};
+    const freshTaken     = (freshRecord_.totalWithdrawn||0)+(freshRecord_.pendingAmount||0);
+    const freshEntitle   = freshEarned * ctx.maxPercent;
+    const freshRemaining = Math.max(0, freshEntitle - freshTaken);
+    const freshMax       = Math.min(freshRemaining, freshBal);
+    if(amount > freshMax){
+      err.textContent = `Limit changed. You can now withdraw up to $${freshMax.toFixed(2)}.`;
+      return;
+    }
+  } else {
+    const freshSnap = await db.ref('tradex_wallets/'+ctx.walletUid).once('value');
+    const freshBal  = (freshSnap.val()||{}).balance||0;
+    if(amount > freshBal){
+      err.textContent = `Balance changed. Available: $${freshBal.toFixed(2)}`;
+      return;
+    }
   }
 
   const btn = document.getElementById('wSubmitBtn');
   btn.textContent='Submitting...'; btn.disabled=true;
 
-  // Record withdrawal — walletUid is the store owner's UID
   const req = {
-    requesterUid:   user.uid,
-    requesterName:  user.name,
-    requesterEmail: user.email,
-    sellerUid:      ctx.walletUid,   // whose wallet gets debited
-    sellerName:     ctx.ownerName,
+    requesterUid:      user.uid,
+    requesterName:     user.name,
+    requesterEmail:    user.email,
+    sellerUid:         ctx.walletUid,
+    sellerName:        ctx.ownerName,
     accNum, accName, amount,
-    bank: 'Atlantas Union Bank',
-    status: 'pending',
-    submittedAt: new Date().toISOString(),
-    isAgent: ctx.isAgent,
-    agentRole: ctx.isAgent ? ctx.role : null,
+    bank:              'Atlantas Union Bank',
+    status:            'pending',
+    submittedAt:       new Date().toISOString(),
+    isAgent:           ctx.isAgent,
+    agentRole:         ctx.isAgent ? ctx.role : null,
     withdrawalPercent: Math.round(ctx.maxPercent*100)
   };
 
-  await db.ref('tradex_withdrawals').push(req);
+  const pushRef = await db.ref('tradex_withdrawals').push(req);
+  const withdrawalKey = pushRef.key;
 
-  // Deduct from the CORRECT wallet (store owner's if agent)
+  // Deduct from the store wallet
   await db.ref('tradex_wallets/'+ctx.walletUid).transaction(w=>{
     if(!w) return w;
     w.balance = Math.max(0,(w.balance||0)-amount);
     w.pending = (w.pending||0)+amount;
     return w;
   });
+
+  // Track agent's pending amount so they can't double-dip
+  if(ctx.isAgent){
+    await db.ref(`tradex_agent_withdrawals/${ctx.walletUid}/${user.uid}`).transaction(r=>{
+      if(!r) r = {totalWithdrawn:0, pendingAmount:0};
+      r.pendingAmount = (r.pendingAmount||0) + amount;
+      return r;
+    });
+  }
+
+  // Notify admin
+  const who = ctx.isAgent ? `${user.name} (${ctx.role} at ${ctx.ownerName})` : user.name;
+  await db.ref('tradex_notifications/admin_alerts').push({
+    msg:`💸 $${amount.toFixed(2)} withdrawal from ${who}`,
+    at:new Date().toISOString(), read:false, type:'withdrawal_request',
+    withdrawalKey
+  });
+
+  // Notify store owner if agent
+  if(ctx.isAgent){
+    await db.ref('tradex_notifications/'+ctx.walletUid).push({
+      msg:`💸 ${user.name} (${ctx.role}) requested $${amount.toFixed(2)} from your store wallet. Pending admin approval.`,
+      type:'agent_withdrawal', at:new Date().toISOString(), read:false
+    });
+  }
+
+  btn.textContent='Submit Withdrawal Request'; btn.disabled=false;
+  closeModal('withdrawModal');
+  showToast('✅ Withdrawal submitted! Admin will process within 24–48 hrs.');
+  document.getElementById('wAccNum').value='';
+  document.getElementById('wAccName').value='';
+  document.getElementById('wAmount').value='';
+  withdrawContext = null;
+  if(!ctx.isAgent) loadWallet();
+}
 
   // Notify admin
   const who = ctx.isAgent ? `${user.name} (${ctx.role} at ${ctx.ownerName})` : user.name;
@@ -3336,24 +3431,37 @@ function filterAdmin(f){
 }
 
 async function adminApprove(key,sellerUid,amount,requesterUid,requesterName){
-  const rUid = requesterUid||sellerUid; // who gets notified/paid
+  const rUid = requesterUid||sellerUid;
+  const isAgentWithdrawal = rUid !== sellerUid;
   if(!confirm(`Approve $${parseFloat(amount).toFixed(2)} withdrawal by ${requesterName||'seller'}?`))return;
+
   await db.ref('tradex_withdrawals/'+key).update({status:'approved',processedAt:new Date().toISOString(),processedBy:user.email});
-  // Move from pending on the wallet that was debited (sellerUid's wallet)
+
+  // Remove from store's pending balance
   await db.ref('tradex_wallets/'+sellerUid).transaction(w=>{
     if(!w)return w;
     w.pending=Math.max(0,(w.pending||0)-parseFloat(amount));
     return w;
   });
-  // Notify the requester (agent or owner)
+
+  // If agent: move pendingAmount → totalWithdrawn so their entitlement is permanently consumed
+  if(isAgentWithdrawal){
+    await db.ref(`tradex_agent_withdrawals/${sellerUid}/${rUid}`).transaction(r=>{
+      if(!r) r={totalWithdrawn:0,pendingAmount:0};
+      r.pendingAmount  = Math.max(0,(r.pendingAmount||0) - parseFloat(amount));
+      r.totalWithdrawn = (r.totalWithdrawn||0) + parseFloat(amount);
+      return r;
+    });
+  }
+
+  // Notify requester
   await db.ref('tradex_notifications/'+rUid).push({
     msg:`✅ Your withdrawal of $${parseFloat(amount).toFixed(2)} has been approved and paid to your Atlantas Bank account!`,
     type:'withdraw_approved',at:new Date().toISOString(),read:false
   });
-  // Also notify store owner if it was an agent request
-  if(rUid !== sellerUid){
+  if(isAgentWithdrawal){
     await db.ref('tradex_notifications/'+sellerUid).push({
-      msg:`✅ Team member ${requesterName||'an agent'}'s withdrawal of $${parseFloat(amount).toFixed(2)} has been approved.`,
+      msg:`✅ Team member ${requesterName||'an agent'}'s $${parseFloat(amount).toFixed(2)} withdrawal has been approved.`,
       type:'withdraw_approved',at:new Date().toISOString(),read:false
     });
   }
@@ -3362,20 +3470,33 @@ async function adminApprove(key,sellerUid,amount,requesterUid,requesterName){
 
 async function adminReject(key,sellerUid,amount,requesterUid,requesterName){
   const rUid = requesterUid||sellerUid;
+  const isAgentWithdrawal = rUid !== sellerUid;
   const reason=prompt('Reason for rejection (requester will see this):');
   if(reason===null)return;
   const r=reason||'No reason given';
+
   await db.ref('tradex_withdrawals/'+key).update({status:'rejected',processedAt:new Date().toISOString(),processedBy:user.email,rejectionReason:r});
-  // Refund to the wallet that was debited
+
+  // Refund the store wallet
   await db.ref('tradex_wallets/'+sellerUid).transaction(w=>{
     if(!w)return w;
     w.balance=(w.balance||0)+parseFloat(amount);
     w.pending=Math.max(0,(w.pending||0)-parseFloat(amount));
     return w;
   });
+
+  // If agent: remove from pendingAmount so they can try again (not consumed since it wasn't paid)
+  if(isAgentWithdrawal){
+    await db.ref(`tradex_agent_withdrawals/${sellerUid}/${rUid}`).transaction(r2=>{
+      if(!r2) return r2;
+      r2.pendingAmount = Math.max(0,(r2.pendingAmount||0)-parseFloat(amount));
+      return r2;
+    });
+  }
+
   // Notify requester
   await db.ref('tradex_notifications/'+rUid).push({
-    msg:`⚠️ Your withdrawal of $${parseFloat(amount).toFixed(2)} was rejected. Reason: ${r}. Funds have been returned to the store balance.`,
+    msg:`⚠️ Your $${parseFloat(amount).toFixed(2)} withdrawal was rejected. Reason: ${r}. ${isAgentWithdrawal?'Funds returned to store balance.':'Funds returned to your balance.'}`,
     type:'withdraw_rejected',at:new Date().toISOString(),read:false
   });
   showToast('❌ Withdrawal rejected. Balance refunded.');
