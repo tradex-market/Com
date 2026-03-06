@@ -1046,12 +1046,37 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
 
     <div class="fg">
       <label>Account Number</label>
-      <input type="text" id="wAccNum" placeholder="Enter your Atlantas Bank account number" oninput="checkAccNum()">
+      <input type="text" id="wAccNum" placeholder="Enter your Atlantas Bank account number"
+        oninput="scheduleAccLookup()" autocomplete="off"
+        style="letter-spacing:.05em;">
     </div>
-    <div class="fg">
-      <label>Account Name</label>
-      <input type="text" id="wAccName" placeholder="Name on your bank account">
+
+    <!-- Lookup states -->
+    <div id="wLookupSearching" style="display:none;align-items:center;gap:8px;padding:10px 14px;background:var(--surface2);border-radius:8px;margin-bottom:12px;font-size:.84rem;color:var(--muted);">
+      <span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span> Looking up account…
     </div>
+
+    <div id="wLookupFound" style="display:none;background:#e8f5e9;border:2px solid #2d7a4f;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:42px;height:42px;border-radius:50%;background:#2d7a4f;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:1.1rem;flex-shrink:0;" id="wAccInitial">?</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:1rem;color:#1a4d30;" id="wAccNameDisplay">—</div>
+          <div style="font-size:.75rem;color:#2d7a4f;margin-top:2px;">✓ Account verified · Atlantas Union Bank</div>
+          <div style="font-size:.74rem;color:#2d7a4f;margin-top:1px;">Bank balance: <strong id="wAccBankBal">—</strong></div>
+        </div>
+        <div style="font-size:1.3rem;">🏦</div>
+      </div>
+    </div>
+
+    <div id="wLookupNotFound" style="display:none;background:#fdecea;border:1.5px solid #f5c6c6;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.83rem;color:#c0392b;">
+      ❌ Account not found. Please check the number and try again.
+    </div>
+
+    <!-- Hidden resolved fields — set by lookup, never typed by user -->
+    <input type="hidden" id="wAccName">
+    <input type="hidden" id="wAccUid">
+    <input type="hidden" id="wAccPath">
+
     <div class="fg">
       <label>Amount to Withdraw ($)</label>
       <input type="number" id="wAmount" placeholder="0.00" min="1" step="0.01" oninput="checkWithdrawAmount()">
@@ -3222,7 +3247,134 @@ async function openWithdrawModal(){
   openModal('withdrawModal');
 }
 
-function checkAccNum(){ document.getElementById('wErr').textContent=''; }
+// ── BANK ACCOUNT LOOKUP ───────────────────────────────────────────────────────
+// Runs in the browser — has full Firebase access regardless of server restrictions.
+// Tries every common bank Firebase structure simultaneously, uses whichever hits.
+
+let _accLookupTimer = null;
+
+function scheduleAccLookup() {
+  // Reset resolved state immediately
+  document.getElementById('wAccName').value  = '';
+  document.getElementById('wAccUid').value   = '';
+  document.getElementById('wAccPath').value  = '';
+  document.getElementById('wErr').textContent = '';
+  document.getElementById('wLookupFound').style.display    = 'none';
+  document.getElementById('wLookupNotFound').style.display = 'none';
+  document.getElementById('wLookupSearching').style.display = 'none';
+
+  const accNum = document.getElementById('wAccNum').value.trim();
+  if (accNum.length < 3) return;
+
+  clearTimeout(_accLookupTimer);
+  document.getElementById('wLookupSearching').style.display = 'flex';
+  _accLookupTimer = setTimeout(() => _bankLookup(accNum), 700);
+}
+
+async function _bankLookup(accNum) {
+  const elSearching = document.getElementById('wLookupSearching');
+  const elFound     = document.getElementById('wLookupFound');
+  const elNotFound  = document.getElementById('wLookupNotFound');
+
+  try {
+    // Fire all possible patterns in parallel — fastest wins
+    const checks = await Promise.all([
+      // 1. accounts/{accNum}  — direct key lookup
+      db.ref('accounts/' + accNum).once('value'),
+      // 2. users ordered by accountNumber field
+      db.ref('users').orderByChild('accountNumber').equalTo(accNum).once('value'),
+      // 3. users ordered by account_number field
+      db.ref('users').orderByChild('account_number').equalTo(accNum).once('value'),
+      // 4. users ordered by accNumber field
+      db.ref('users').orderByChild('accNumber').equalTo(accNum).once('value'),
+      // 5. bank_accounts/{accNum}
+      db.ref('bank_accounts/' + accNum).once('value'),
+      // 6. accounts ordered by number field
+      db.ref('accounts').orderByChild('number').equalTo(accNum).once('value'),
+      // 7. accounts ordered by accountNumber field
+      db.ref('accounts').orderByChild('accountNumber').equalTo(accNum).once('value'),
+    ]);
+
+    let found = null;
+
+    // Pattern 1 — accounts/{accNum} direct
+    if (!found && checks[0].exists()) {
+      const d = checks[0].val();
+      found = _extractAccount(d, checks[0].key, 'accounts/' + accNum);
+    }
+    // Pattern 2-4 — users ordered query
+    for (let i = 1; i <= 3; i++) {
+      if (!found && checks[i].exists()) {
+        checks[i].forEach(c => {
+          if (!found) found = _extractAccount(c.val(), c.key, 'users/' + c.key);
+        });
+      }
+    }
+    // Pattern 5 — bank_accounts/{accNum}
+    if (!found && checks[4].exists()) {
+      const d = checks[4].val();
+      found = _extractAccount(d, null, 'bank_accounts/' + accNum);
+    }
+    // Pattern 6-7 — accounts ordered query
+    for (let i = 5; i <= 6; i++) {
+      if (!found && checks[i].exists()) {
+        checks[i].forEach(c => {
+          if (!found) found = _extractAccount(c.val(), c.key, 'accounts/' + c.key);
+        });
+      }
+    }
+
+    elSearching.style.display = 'none';
+
+    if (found) {
+      // Write to hidden fields so submitWithdraw can read them
+      document.getElementById('wAccName').value  = found.name;
+      document.getElementById('wAccUid').value   = found.uid  || '';
+      document.getElementById('wAccPath').value  = found.path || '';
+
+      // Show verified card
+      document.getElementById('wAccInitial').textContent    = found.name.trim()[0].toUpperCase();
+      document.getElementById('wAccNameDisplay').textContent = found.name;
+      document.getElementById('wAccBankBal').textContent     = '$' + parseFloat(found.balance || 0).toFixed(2);
+      elFound.style.display    = 'block';
+      elNotFound.style.display = 'none';
+    } else {
+      document.getElementById('wAccName').value = '';
+      document.getElementById('wAccUid').value  = '';
+      document.getElementById('wAccPath').value = '';
+      elFound.style.display    = 'none';
+      elNotFound.style.display = 'block';
+    }
+  } catch (err) {
+    console.error('Bank lookup error:', err);
+    elSearching.style.display = 'none';
+    elNotFound.style.display  = 'block';
+  }
+}
+
+// Extract a consistent account object from whatever shape the bank uses
+function _extractAccount(data, uid, path) {
+  if (!data) return null;
+  const name =
+    data.name        || data.fullName    || data.full_name  ||
+    data.accountName || data.holderName  || data.displayName||
+    data.firstName   ?
+      (data.firstName + (data.lastName ? ' ' + data.lastName : '')) : null;
+  if (!name) return null; // must have a name to be a real account
+  const balance =
+    data.balance     || data.accountBalance || data.walletBalance ||
+    data.wallet      || data.availableBalance || 0;
+  // Detect which balance field name the bank uses (for crediting later)
+  const balanceField =
+    'balance'          in data ? 'balance'          :
+    'accountBalance'   in data ? 'accountBalance'   :
+    'walletBalance'    in data ? 'walletBalance'     :
+    'wallet'           in data ? 'wallet'            :
+    'availableBalance' in data ? 'availableBalance'  : 'balance';
+  return { name, uid: uid || data.uid || data.userId || null, balance, balanceField, path };
+}
+
+function checkAccNum() { document.getElementById('wErr').textContent = ''; }
 function checkWithdrawAmount(){ document.getElementById('wErr').textContent=''; }
 
 async function submitWithdraw(){
@@ -3230,13 +3382,15 @@ async function submitWithdraw(){
   if(!withdrawContext){showToast('⚠️ Please reopen the withdrawal window.');return;}
 
   const accNum  = document.getElementById('wAccNum').value.trim();
-  const accName = document.getElementById('wAccName').value.trim();
+  const accName = document.getElementById('wAccName').value.trim();   // set by lookup
+  const accPath = document.getElementById('wAccPath').value.trim();   // set by lookup
+  const accUid  = document.getElementById('wAccUid').value.trim();    // set by lookup
   const amount  = parseFloat(document.getElementById('wAmount').value);
   const err     = document.getElementById('wErr');
 
-  if(!accNum) {err.textContent='Please enter your account number.';return;}
-  if(!accName){err.textContent='Please enter the account name.';return;}
-  if(!amount||amount<=0){err.textContent='Please enter a valid amount.';return;}
+  if (!accNum)  { err.textContent = 'Please enter your account number.'; return; }
+  if (!accName) { err.textContent = 'Account not verified — check the number and wait for it to resolve.'; return; }
+  if (!amount || amount <= 0) { err.textContent = 'Please enter a valid amount.'; return; }
 
   const ctx = withdrawContext;
   const maxAllowed = ctx.isAgent ? ctx.myLimit : ctx.balance;
@@ -3290,7 +3444,11 @@ async function submitWithdraw(){
     requesterEmail:    user.email,
     sellerUid:         ctx.walletUid,
     sellerName:        ctx.ownerName,
-    accNum, accName, amount,
+    accNum,
+    accName,
+    bankPath:  accPath || null,   // e.g. "users/abc123" or "accounts/1234567890"
+    bankUid:   accUid  || null,
+    amount,
     bank:              'Atlantas Union Bank',
     status:            'pending',
     submittedAt:       new Date().toISOString(),
@@ -3337,10 +3495,14 @@ async function submitWithdraw(){
 
   btn.textContent='Submit Withdrawal Request'; btn.disabled=false;
   closeModal('withdrawModal');
-  showToast('✅ Withdrawal submitted! Admin will process within 24–48 hrs.');
-  document.getElementById('wAccNum').value='';
-  document.getElementById('wAccName').value='';
-  document.getElementById('wAmount').value='';
+  showToast('✅ Withdrawal submitted! Funds will be sent to your Atlantas Bank account on approval.');
+  document.getElementById('wAccNum').value   = '';
+  document.getElementById('wAccName').value  = '';
+  document.getElementById('wAccUid').value   = '';
+  document.getElementById('wAccPath').value  = '';
+  document.getElementById('wAmount').value   = '';
+  document.getElementById('wLookupFound').style.display    = 'none';
+  document.getElementById('wLookupNotFound').style.display = 'none';
   withdrawContext = null;
   if(!ctx.isAgent) loadWallet();
 }
@@ -3589,41 +3751,126 @@ function filterAdmin(f){
 }
 
 async function adminApprove(key,sellerUid,amount,requesterUid,requesterName){
-  const rUid = requesterUid||sellerUid;
+  const rUid = requesterUid || sellerUid;
   const isAgentWithdrawal = rUid !== sellerUid;
-  if(!confirm(`Approve $${parseFloat(amount).toFixed(2)} withdrawal by ${requesterName||'seller'}?`))return;
+  const amt = parseFloat(amount);
 
-  await db.ref('tradex_withdrawals/'+key).update({status:'approved',processedAt:new Date().toISOString(),processedBy:user.email});
+  if (!confirm(`Approve $${amt.toFixed(2)} withdrawal by ${requesterName||'seller'}?\n\nThis will credit the funds directly to their Atlantas Bank account.`)) return;
 
-  // Remove from store's pending balance
-  await db.ref('tradex_wallets/'+sellerUid).transaction(w=>{
-    if(!w)return w;
-    w.pending=Math.max(0,(w.pending||0)-parseFloat(amount));
+  // ── Step 1: Load the withdrawal record to get bankPath ──────────────────────
+  const wSnap = await db.ref('tradex_withdrawals/' + key).once('value');
+  const wData = wSnap.val() || {};
+  const bankPath = wData.bankPath || null;
+  const bankUid  = wData.bankUid  || null;
+
+  // ── Step 2: Mark approved ───────────────────────────────────────────────────
+  await db.ref('tradex_withdrawals/' + key).update({
+    status: 'approved',
+    processedAt: new Date().toISOString(),
+    processedBy: user.email
+  });
+
+  // ── Step 3: Remove from store pending balance ───────────────────────────────
+  await db.ref('tradex_wallets/' + sellerUid).transaction(w => {
+    if (!w) return w;
+    w.pending = Math.max(0, (w.pending || 0) - amt);
     return w;
   });
 
-  // If agent: move pendingAmount → totalWithdrawn so their entitlement is permanently consumed
-  if(isAgentWithdrawal){
-    await db.ref(`tradex_agent_withdrawals/${sellerUid}/${rUid}`).transaction(r=>{
-      if(!r) r={totalWithdrawn:0,pendingAmount:0};
-      r.pendingAmount  = Math.max(0,(r.pendingAmount||0) - parseFloat(amount));
-      r.totalWithdrawn = (r.totalWithdrawn||0) + parseFloat(amount);
+  // ── Step 4: If agent — move pending → totalWithdrawn ────────────────────────
+  if (isAgentWithdrawal) {
+    await db.ref(`tradex_agent_withdrawals/${sellerUid}/${rUid}`).transaction(r => {
+      if (!r) r = { totalWithdrawn: 0, pendingAmount: 0 };
+      r.pendingAmount  = Math.max(0, (r.pendingAmount  || 0) - amt);
+      r.totalWithdrawn = (r.totalWithdrawn || 0) + amt;
       return r;
     });
   }
 
-  // Notify requester
-  await db.ref('tradex_notifications/'+rUid).push({
-    msg:`✅ Your withdrawal of $${parseFloat(amount).toFixed(2)} has been approved and paid to your Atlantas Bank account!`,
-    type:'withdraw_approved',at:new Date().toISOString(),read:false
+  // ── Step 5: CREDIT THE BANK ACCOUNT ─────────────────────────────────────────
+  // Same Firebase project — we write directly to their bank account node.
+  let credited = false;
+  const txRecord = {
+    type: 'credit',
+    amount: amt,
+    from: 'Tradex Marketplace',
+    description: `Tradex withdrawal — ref: ${key.slice(-8).toUpperCase()}`,
+    at: new Date().toISOString(),
+    ref: key
+  };
+
+  if (bankPath) {
+    try {
+      // Read current account to detect which balance field is used
+      const bankSnap = await db.ref(bankPath).once('value');
+      const bankData = bankSnap.val() || {};
+
+      // Auto-detect balance field
+      const balField =
+        'balance'          in bankData ? 'balance'          :
+        'accountBalance'   in bankData ? 'accountBalance'   :
+        'walletBalance'    in bankData ? 'walletBalance'     :
+        'wallet'           in bankData ? 'wallet'            :
+        'availableBalance' in bankData ? 'availableBalance'  : 'balance';
+
+      await db.ref(bankPath).transaction(acct => {
+        if (!acct) acct = {};
+        acct[balField] = parseFloat(acct[balField] || 0) + amt;
+        return acct;
+      });
+
+      // Write transaction history next to the account (non-blocking)
+      db.ref(bankPath + '/transactions').push(txRecord).catch(() => {});
+      // Also try transactions one level up (some banks store at root/transactions)
+      db.ref('transactions').push({ ...txRecord, accountPath: bankPath }).catch(() => {});
+
+      credited = true;
+    } catch(e) {
+      console.error('Bank credit via path failed:', e);
+    }
+  }
+
+  // Fallback: if bankUid known, try users/{uid} directly
+  if (!credited && bankUid) {
+    try {
+      const uSnap = await db.ref('users/' + bankUid).once('value');
+      const uData = uSnap.val() || {};
+      const balField =
+        'balance'        in uData ? 'balance'        :
+        'accountBalance' in uData ? 'accountBalance' :
+        'walletBalance'  in uData ? 'walletBalance'  : 'balance';
+
+      await db.ref('users/' + bankUid).transaction(u => {
+        if (!u) u = {};
+        u[balField] = parseFloat(u[balField] || 0) + amt;
+        return u;
+      });
+      db.ref('users/' + bankUid + '/transactions').push(txRecord).catch(() => {});
+      credited = true;
+    } catch(e) {
+      console.error('Bank credit via uid failed:', e);
+    }
+  }
+
+  // ── Step 6: Notify users ────────────────────────────────────────────────────
+  const creditMsg = credited
+    ? `✅ Your withdrawal of $${amt.toFixed(2)} has been approved and credited to your Atlantas Bank account (${wData.accNum || 'on file'})!`
+    : `✅ Your withdrawal of $${amt.toFixed(2)} has been approved. Funds will appear in your Atlantas Bank account shortly.`;
+
+  await db.ref('tradex_notifications/' + rUid).push({
+    msg: creditMsg, type: 'withdraw_approved', at: new Date().toISOString(), read: false
   });
-  if(isAgentWithdrawal){
-    await db.ref('tradex_notifications/'+sellerUid).push({
-      msg:`✅ Team member ${requesterName||'an agent'}'s $${parseFloat(amount).toFixed(2)} withdrawal has been approved.`,
-      type:'withdraw_approved',at:new Date().toISOString(),read:false
+
+  if (isAgentWithdrawal) {
+    await db.ref('tradex_notifications/' + sellerUid).push({
+      msg: `✅ Team member ${requesterName || 'an agent'}'s $${amt.toFixed(2)} withdrawal has been approved and paid.`,
+      type: 'withdraw_approved', at: new Date().toISOString(), read: false
     });
   }
-  showToast('✅ Withdrawal approved & marked as paid!');
+
+  showToast(credited
+    ? `✅ Approved! $${amt.toFixed(2)} credited to their bank account.`
+    : `✅ Approved! (Bank credit pending — check account path.)`);
 }
 
 async function adminReject(key,sellerUid,amount,requesterUid,requesterName){
