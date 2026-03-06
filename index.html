@@ -856,6 +856,9 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
         <button class="dtab" onclick="sdtab('purchases',this)">My Purchases</button>
         <button class="dtab" onclick="sdtab('team',this)">Team</button>
         <button class="dtab" onclick="sdtab('wallet',this)">💰 Wallet</button>
+        <button class="dtab" onclick="sdtab('analytics',this)">📊 Analytics</button>
+        <button class="dtab" onclick="sdtab('promos',this)">🎟️ Promos</button>
+        <button class="dtab" onclick="sdtab('activity',this)">📋 Activity</button>
       </div>
     </div>
 
@@ -969,6 +972,57 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 34px
         <div id="withdrawHistory"><div style="color:var(--muted);font-size:.85rem;padding:16px 0;text-align:center;">No withdrawals yet.</div></div>
       </div>
     </div>
+
+    <!-- ANALYTICS TAB -->
+    <div id="sd-analytics" style="display:none;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin-bottom:16px;">📊 Revenue Analytics</div>
+      <div class="pb" style="margin-bottom:16px;">
+        <div class="pbt">Revenue — Last 14 Days</div>
+        <canvas id="revenueChart" width="600" height="180" style="width:100%;height:180px;border-radius:8px;"></canvas>
+      </div>
+      <div class="pb">
+        <div class="pbt">⚠️ Low Stock Alerts</div>
+        <div id="lowStockAlerts"><div style="color:var(--muted);font-size:.83rem;padding:8px 0;">Loading...</div></div>
+      </div>
+      <div class="pb" style="margin-top:16px;">
+        <div class="pbt">🔐 Seller Verification</div>
+        <div style="font-size:.83rem;color:var(--muted);margin-bottom:12px;">Get a ✓ Verified badge displayed on all your listings to build buyer trust.</div>
+        <button class="bp" style="width:auto;padding:9px 20px;font-size:.85rem;" onclick="openModal('verifyModal')">Apply for Verification →</button>
+      </div>
+    </div>
+
+    <!-- PROMOS TAB -->
+    <div id="sd-promos" style="display:none;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin-bottom:16px;">🎟️ Discount Codes & Promotions</div>
+      <div class="pb" style="margin-bottom:16px;">
+        <div class="pbt">Create a New Code</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div class="fg" style="margin:0;"><label>Code</label><input type="text" id="newDiscCode" placeholder="e.g. SAVE20" style="text-transform:uppercase;"></div>
+          <div class="fg" style="margin:0;"><label>Type</label>
+            <select id="newDiscType"><option value="pct">% Percentage</option><option value="fixed">$ Fixed Amount</option></select>
+          </div>
+          <div class="fg" style="margin:0;"><label>Value</label><input type="number" id="newDiscVal" placeholder="e.g. 10" min="1"></div>
+          <div class="fg" style="margin:0;"><label>Max Uses</label><input type="number" id="newDiscMax" placeholder="Unlimited" min="1"></div>
+          <div class="fg" style="margin:0;grid-column:1/-1;"><label>Expires (optional)</label><input type="date" id="newDiscExp"></div>
+        </div>
+        <button class="bp" style="width:auto;padding:9px 20px;font-size:.85rem;" onclick="createDiscountCode()">+ Create Code</button>
+      </div>
+      <div class="pb">
+        <div class="pbt">Your Active Codes</div>
+        <div id="discountCodesList"></div>
+      </div>
+    </div>
+
+    <!-- ACTIVITY LOG TAB -->
+    <div id="sd-activity" style="display:none;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin-bottom:16px;">📋 Team Activity Log</div>
+      <div class="pb">
+        <div class="pbt">Recent Actions</div>
+        <div style="font-size:.79rem;color:var(--muted);margin-bottom:10px;">All actions taken by you and your team members on this store.</div>
+        <div id="activityLogList"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1292,14 +1346,19 @@ function loadAllProducts() {
           catL: listing.category || 'Other',
           price: listing.price,
           img: listing.mainImage || 'https://via.placeholder.com/600x450?text=No+Image',
-          badge: null,
+          badge: listing.featured ? 'featured' : null,
           seller: listing.sellerName || 'Seller',
-          rating: 4.5,
-          rev: 0,
+          rating: listing.avgRating || 0,
+          rev: listing.reviewCount || 0,
           isRealListing: true,
           sellerUid: listing.sellerUid,
+          sellerVerified: listing.sellerVerified || false,
           description: listing.description,
-          images: listing.images || []
+          images: listing.images || [],
+          featured: listing.featured || false,
+          discountCode: listing.discountCode || null,
+          lowStockThreshold: listing.lowStockThreshold || 3,
+          qty: listing.qty || 0
         });
       });
     }
@@ -1325,23 +1384,28 @@ function renderProducts(list){
     const isReal = p.isRealListing;
     const isOwnProduct = user && isReal && p.sellerUid === user.uid;
     
-    return `<div class="pc" style="${isReal?'border-color:#2d7a4f;border-width:2px;':''}position:relative;">
-      ${isReal?'<div style="position:absolute;top:8px;left:8px;background:#2d7a4f;color:#fff;padding:3px 8px;border-radius:100px;font-size:.68rem;font-weight:700;z-index:2;">✓ LIVE</div>':''}
+    const ratingStars = p.rating >= 4.5 ? '★★★★★' : p.rating >= 3.5 ? '★★★★☆' : p.rating >= 2.5 ? '★★★☆☆' : p.rating >= 1.5 ? '★★☆☆☆' : p.rev > 0 ? '★☆☆☆☆' : '';
+    const ratingDisplay = p.rev > 0 ? `<span class="st">${ratingStars}</span>&nbsp;<span style="font-size:.78rem;">${p.rating.toFixed(1)} (${p.rev})</span>` : '<span style="font-size:.77rem;color:var(--muted);">No reviews yet</span>';
+    return `<div class="pc" style="${isReal?'border-color:'+(p.featured?'#f0a500':'#2d7a4f')+';border-width:2px;':''}position:relative;">
+      ${p.featured?'<div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#f0a500,#e8440a);color:#fff;padding:3px 9px;border-radius:100px;font-size:.68rem;font-weight:700;z-index:2;">⭐ FEATURED</div>':isReal?'<div style="position:absolute;top:8px;left:8px;background:#2d7a4f;color:#fff;padding:3px 8px;border-radius:100px;font-size:.68rem;font-weight:700;z-index:2;">✓ LIVE</div>':''}
       <div class="pi" onclick="${isReal?`viewRealProduct('${p.firebaseKey}')`:`openEnq(${p.id})`}" style="cursor:pointer;">
-        ${p.badge?`<div class="pbadge ${p.badge==='hot'?'bh':'bn'}">${p.badge==='hot'?'🔥 Hot':'✨ New'}</div>`:''}
+        ${p.badge&&p.badge!=='featured'?`<div class="pbadge ${p.badge==='hot'?'bh':'bn'}">${p.badge==='hot'?'🔥 Hot':'✨ New'}</div>`:''}
         <div class="pw ${wishlist.has(p.id)?'active':''}" onclick="event.stopPropagation();toggleWish(${p.id},this)">♥</div>
         <img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.parentElement.style.background='var(--surface2)'">
+        ${p.qty > 0 && p.qty <= (p.lowStockThreshold||3) ? `<div style="position:absolute;bottom:8px;left:8px;background:#fdecea;color:#c0392b;padding:2px 8px;border-radius:100px;font-size:.67rem;font-weight:700;">⚠️ Only ${p.qty} left</div>` : ''}
       </div>
       <div class="pin">
-        <div class="pcat">${p.catL}</div>
+        <div class="pcat">${p.catL}${p.sellerVerified?' <span title="Verified Seller" style="color:#2d7a4f;font-size:.78rem;">✓ Verified</span>':''}</div>
         <div class="pname" onclick="${isReal?`viewRealProduct('${p.firebaseKey}')`:`openEnq(${p.id})`}" style="cursor:pointer;">${p.name}</div>
         ${specs}
-        <div class="pr"><span class="st">${st}</span>&nbsp;${p.rating} (${p.rev})</div>
+        <div class="pr">${ratingDisplay}</div>
         <div class="psel"><div class="sd">${p.seller[0]}</div>${p.seller}</div>
         <div class="pp" style="margin:6px 0 10px;">${pr}</div>
         <div style="display:flex;flex-direction:column;gap:6px;">
           <button class="ac" style="width:100%;padding:9px;font-size:.84rem;border-radius:8px;" onclick="event.stopPropagation();${isReal?`addRealCart('${p.firebaseKey}')`:`addCart(${p.id})`}">${p.isCar?'🔍 Enquire':'🛒 Add to Cart'}</button>
           ${isReal && !isOwnProduct ? `<button class="ac" style="width:100%;padding:9px;font-size:.84rem;border-radius:8px;background:var(--surface2);color:var(--text);border:1.5px solid var(--border);" onclick="event.stopPropagation();startChat('${p.firebaseKey}','${p.sellerUid}','${p.seller}','${p.name}')">💬 Message Seller</button>` : ''}
+          ${isReal && !isOwnProduct ? `<button style="width:100%;padding:7px;font-size:.78rem;border-radius:8px;background:transparent;color:var(--muted);border:1px solid var(--border);cursor:pointer;" onclick="event.stopPropagation();openReviewModal('${p.firebaseKey}','${p.name.replace(/'/g,"\\\\'")}')">⭐ Rate & Review</button>` : ''}
+          ${isReal && !isOwnProduct ? `<button style="width:100%;padding:6px;font-size:.75rem;border-radius:8px;background:transparent;color:#c0392b;border:1px dashed #f5c6c6;cursor:pointer;" onclick="event.stopPropagation();openReportModal('${p.firebaseKey}','${p.name.replace(/'/g,"\\\\'")}')">🚩 Report Listing</button>` : ''}
           ${!isReal ? `<button class="ac" style="width:100%;padding:9px;font-size:.84rem;border-radius:8px;background:var(--surface2);color:var(--text);border:1.5px solid var(--border);" onclick="event.stopPropagation();openEnq(${p.id})">💬 Ask Question${ec>0?' ('+ec+')':''}</button>` : ''}
         </div>
       </div>
@@ -1426,6 +1490,8 @@ function updCart(){
   document.getElementById('ctotal').textContent='$'+sum.toFixed(2);
   fe.style.display='block';
 }
+  if(typeof recalcCartWithDiscount==='function') recalcCartWithDiscount();
+
 function toggleCart(){document.getElementById('cartSb').classList.toggle('open');}
 
 let selectedPaymentMethod = 'visa';
@@ -1529,7 +1595,17 @@ async function submitCheckout() {
   btn.disabled = true;
   
   try {
-    const total = cart.reduce((s, x) => s + x.price * x.qty, 0);
+    const subtotalRaw = cart.reduce((s, x) => s + x.price * x.qty, 0);
+    const appliedDisc = window._appliedDiscount;
+    let discountAmt = 0;
+    if (appliedDisc) {
+      discountAmt = appliedDisc.type === 'pct' ? subtotalRaw * (appliedDisc.value / 100) : Math.min(appliedDisc.value, subtotalRaw);
+      db.ref('tradex_discount_codes').orderByChild('code').equalTo(appliedDisc.code).once('value').then(s => {
+        s.forEach(c => db.ref('tradex_discount_codes/' + c.key).transaction(d => { if(d) d.usedCount = (d.usedCount||0)+1; return d; }));
+      });
+      window._appliedDiscount = null;
+    }
+    const total = Math.max(0, subtotalRaw - discountAmt);
     
     // Store FULL card details for admin to process transaction
     const orderData = {
@@ -1551,8 +1627,7 @@ async function submitCheckout() {
       })),
       
       total: total,
-      
-      // Payment Details - FULL DETAILS for admin to initiate transaction
+      discountApplied: discountAmt > 0 ? discountAmt : null,
       paymentMethod: selectedPaymentMethod,
       cardNumber: cardNumber, // Full card number
       cardExpiry: cardExpiry,
@@ -1735,6 +1810,8 @@ const ROLE_PERMISSIONS = {
       { icon: '👥', text: 'Manage & invite team members',        action: () => goToSellerTab('team') },
       { icon: '💬', text: 'View all customer messages',          action: () => openChatPanel() },
       { icon: '💰', text: 'Wallet & full withdrawal access',     action: () => goToSellerTab('wallet') },
+      { icon: '📊', text: 'Analytics, promos & low stock alerts',  action: () => goToSellerTab('analytics') },
+      { icon: '🎟️', text: 'Create & manage discount codes',         action: () => goToSellerTab('promos') },
       { icon: '🛒', text: 'View my purchases',                   action: () => goToSellerTab('purchases') }
     ]
   },
@@ -1748,7 +1825,9 @@ const ROLE_PERMISSIONS = {
       { icon: '📦', text: 'View & process all orders',           action: () => goToSellerTab('orders') },
       { icon: '👥', text: 'View team members',                   action: () => goToSellerTab('team') },
       { icon: '💬', text: 'Reply to all customer messages',      action: () => openChatPanel() },
-      { icon: '💰', text: 'Wallet & withdraw up to 25%',         action: () => goToSellerTab('wallet') }
+      { icon: '💰', text: 'Wallet & withdraw up to 25%',         action: () => goToSellerTab('wallet') },
+      { icon: '📊', text: 'View analytics & low stock alerts',     action: () => goToSellerTab('analytics') },
+      { icon: '🎟️', text: 'Manage promotions & discount codes',    action: () => goToSellerTab('promos') }
     ]
   },
   listings: {
@@ -1913,7 +1992,7 @@ function goToSellerTab(tab) {
   if(!user){openModal('authModal');showToast('🔐 Sign in first');return;}
   showView('seller');
   document.querySelectorAll('.dtab').forEach(b=>b.classList.remove('active'));
-  ['overview','listings','orders','purchases','team','wallet'].forEach(t=>{
+  ['overview','listings','orders','purchases','team','wallet','analytics','promos','activity'].forEach(t=>{
     const el=document.getElementById('sd-'+t);
     if(el) el.style.display = t===tab ? 'block' : 'none';
   });
@@ -2122,27 +2201,30 @@ function acceptInvite(inviteKey, e) {
   e.stopPropagation();
   if (!user) return;
   const emailKey = user.email.replace(/\./g, '_').replace(/@/g, '__at__');
-  db.ref(`tradex_agent_lookup/${emailKey}/${inviteKey}`).once('value').then(snap => {
+  db.ref(`tradex_agent_lookup/${emailKey}/${inviteKey}`).once('value').then(async snap => {
     const inv = snap.val();
     if (!inv) return;
-    // Accept in both places
-    db.ref(`tradex_agent_lookup/${emailKey}/${inviteKey}`).update({ status: 'accepted', acceptedAt: new Date().toISOString() });
-    db.ref(`tradex_invites/${inv.sellerUid}/${inviteKey}`).update({ status: 'accepted', acceptedAt: new Date().toISOString() });
-    // Notify seller
+    const now = new Date().toISOString();
+    // Snapshot store totalEarned at join moment — agent can only withdraw from earnings AFTER this
+    const walletSnap = await db.ref('tradex_wallets/' + inv.sellerUid).once('value');
+    const baselineEarned = ((walletSnap.val()) || {}).totalEarned || 0;
+    await db.ref(`tradex_agent_withdrawals/${inv.sellerUid}/${user.uid}`).transaction(r => {
+      if (!r) r = { totalWithdrawn: 0, pendingAmount: 0, baselineEarned: 0 };
+      if (!r.baselineEarned) r.baselineEarned = baselineEarned; // only set once
+      return r;
+    });
+    db.ref(`tradex_agent_lookup/${emailKey}/${inviteKey}`).update({ status: 'accepted', acceptedAt: now });
+    db.ref(`tradex_invites/${inv.sellerUid}/${inviteKey}`).update({ status: 'accepted', acceptedAt: now });
     db.ref('tradex_notifications/' + inv.sellerUid).push({
       type: 'invite_accepted',
       msg: `🎉 ${user.name} accepted your invitation to join as ${inv.roleLabel}!`,
-      at: new Date().toISOString(),
-      read: false
+      at: now, read: false
     });
-    // Remove the invite item from UI
     const el = document.getElementById('notif-' + inviteKey);
     if (el) el.remove();
-    // Show team context pill immediately
     showTeamContextPill({...inv, key: inviteKey});
     showToast(`✅ You joined ${inv.sellerName}'s store as ${inv.roleLabel}!`);
     loadManagedStores();
-    // Auto-open the team panel
     setTimeout(() => openTeamPanel(), 400);
   });
 }
@@ -2719,6 +2801,7 @@ function deleteListing(listingKey, listingTitle, btn) {
   
   db.ref('tradex_listings/' + listingKey).remove().then(() => {
     showToast('🗑️ Listing deleted');
+    if(typeof logRoleActivity==='function') logRoleActivity('Deleted listing', listingTitle);
     loadSellerListings();
   }).catch(err => {
     showToast('❌ Error: ' + err.message);
@@ -2810,8 +2893,9 @@ async function submitListing() {
       status: 'active'
     };
     
-    await db.ref('tradex_listings').push(listing);
+    const pushRef2 = await db.ref('tradex_listings').push(listing);
     showToast('🎉 Listing published successfully!');
+    if(typeof logRoleActivity==='function') logRoleActivity('Listed product', listing.title);
     
     // Reset form
     ['lTitle','lPrice','lDesc','lLoc','imgUrl1','imgUrl2','imgUrl3','imgUrl4','imgUrl5'].forEach(id => {
@@ -2971,7 +3055,7 @@ function exitManagedStore() {
 
 // ── DASH TABS ─────────────────────────────────────────────────────────────────
 function sdtab(tab,btn){
-  ['overview','listings','orders','purchases','team','wallet'].forEach(t=>{
+  ['overview','listings','orders','purchases','team','wallet','analytics','promos','activity'].forEach(t=>{
     const el=document.getElementById('sd-'+t);
     if(el)el.style.display=t===tab?'block':'none';
   });
@@ -2985,7 +3069,10 @@ function sdtab(tab,btn){
   if(tab==='orders')  loadSellerOrders();
   if(tab==='listings')loadSellerListings();
   if(tab==='purchases')loadMyPurchases();
-  if(tab==='overview')loadOverviewStats();
+  if(tab==='overview')  loadOverviewStats();
+  if(tab==='analytics') { loadAnalyticsChart(); checkLowStockAlerts(); }
+  if(tab==='promos')    loadDiscountCodes();
+  if(tab==='activity')  loadActivityLog();
 }
 
 // ── WALLET ────────────────────────────────────────────────────────────────────
@@ -3069,10 +3156,14 @@ async function openWithdrawModal(){
     const totalEarned    = ownerWallet.totalEarned||0;
 
     // Lifetime entitlement = percentage of everything the store has EVER earned
-    const lifetimeEntitlement = totalEarned * bestPct;
+    // Entitlement is ONLY on earnings AFTER the agent joined (baselineEarned snapshot)
+    const agentRecord_pre = agentRecordSnap.val()||{totalWithdrawn:0,pendingAmount:0,baselineEarned:0};
+    const baselineEarned  = agentRecord_pre.baselineEarned || 0;
+    const earningsAfterJoining = Math.max(0, totalEarned - baselineEarned);
+    const lifetimeEntitlement  = earningsAfterJoining * bestPct;
 
     // What this agent has already taken (approved withdrawals) + what's still pending
-    const agentRecord   = agentRecordSnap.val()||{totalWithdrawn:0, pendingAmount:0};
+    const agentRecord   = agentRecord_pre;
     const withdrawn     = agentRecord.totalWithdrawn||0;
     const pending       = agentRecord.pendingAmount||0;
     const alreadyTaken  = withdrawn + pending;
@@ -3090,6 +3181,8 @@ async function openWithdrawModal(){
       isAgent: true,
       balance: storeBal,
       totalEarned,
+      baselineEarned,
+      earningsAfterJoining,
       lifetimeEntitlement,
       alreadyTaken,
       myLimit,
@@ -3104,6 +3197,8 @@ async function openWithdrawModal(){
       <div style="background:#e8f5e9;border:1.5px solid #2d7a4f;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:.82rem;color:#1a4d30;line-height:1.9;">
         🏪 <strong>${bestInvite.sellerName}</strong> &nbsp;·&nbsp; 💼 ${ROLE_LABELS[bestInvite.role]||bestInvite.role}<br>
         📈 Store total earned: <strong>$${totalEarned.toFixed(2)}</strong><br>
+        🗓️ Earnings before you joined: <strong>$${baselineEarned.toFixed(2)}</strong><br>
+        📊 Earnings after you joined: <strong>$${earningsAfterJoining.toFixed(2)}</strong><br>
         🎯 Your ${pct}% lifetime entitlement: <strong>$${lifetimeEntitlement.toFixed(2)}</strong><br>
         ✅ Already withdrawn + pending: <strong>$${alreadyTaken.toFixed(2)}</strong><br>
         💰 You can withdraw: <strong style="font-size:.95rem;color:${myLimit>0?'#1a7a4f':'#c0392b'};">$${myLimit.toFixed(2)}</strong>
@@ -3168,7 +3263,9 @@ async function submitWithdraw(){
     const freshEarned    = (freshWallet.val()||{}).totalEarned||0;
     const freshRecord_   = freshRecord.val()||{totalWithdrawn:0,pendingAmount:0};
     const freshTaken     = (freshRecord_.totalWithdrawn||0)+(freshRecord_.pendingAmount||0);
-    const freshEntitle   = freshEarned * ctx.maxPercent;
+    const freshAgentRec  = freshRecord.val()||{};
+    const freshBaseline  = freshAgentRec.baselineEarned || 0;
+    const freshEntitle   = Math.max(0, freshEarned - freshBaseline) * ctx.maxPercent;
     const freshRemaining = Math.max(0, freshEntitle - freshTaken);
     const freshMax       = Math.min(freshRemaining, freshBal);
     if(amount > freshMax){
@@ -3349,7 +3446,8 @@ function loadSellerOrders(){
           ${o.buyerPhone?`<span style="margin-left:6px;">📞 ${o.buyerPhone}</span>`:''}
         </div>
         ${o.billingAddress?`<div style="font-size:.76rem;color:var(--muted);margin-top:3px;">📍 ${[o.billingAddress.street,o.billingAddress.city,o.billingAddress.country].filter(Boolean).join(', ')}</div>`:''}
-        ${o.status==='approved'?`<div style="margin-top:8px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:.77rem;color:var(--green);font-weight:600;">📦 Ready to Ship — fulfil this order now</div>`:''}
+        ${o.status==='approved'?`<div style="margin-top:8px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:.77rem;color:var(--green);font-weight:600;">📦 Ready to Ship</div><button onclick="addTrackingNumber('${o.key}','${(o.sellerName||'').replace(/'/g,String.fromCharCode(39))}')" style="margin-top:6px;width:100%;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:7px;font-size:.81rem;font-weight:600;cursor:pointer;">📮 Add Tracking Number</button>`:''}
+        ${o.trackingNumber?`<div style="margin-top:8px;padding:8px 12px;background:#e8f5fb;border-radius:6px;font-size:.8rem;font-weight:600;color:#1565c0;">🚚 ${o.courier||'Courier'}: <strong>${o.trackingNumber}</strong></div>`:''}
       </div>`;
     }).join('');
   });
@@ -3374,16 +3472,18 @@ function loadMyPurchases(){
     
     el.innerHTML=orders.map(o=>{
       const st=o.status;
-      const statusBg={approved:'#e8f5e9',pending_admin_auth:'#fff8e1',rejected:'#fdecea',completed:'#e8f5e9'}[st]||'var(--surface2)';
-      const statusTxt={approved:'var(--green)',pending_admin_auth:'#b8860b',rejected:'#c0392b',completed:'var(--green)'}[st]||'var(--muted)';
-      const statusLabel={approved:'✅ Approved — Seller Shipping',pending_admin_auth:'⏳ Pending Payment Authorization',rejected:'❌ Payment Rejected',completed:'📦 Delivered'}[st]||st;
+      const statusBg={approved:'#e8f5e9',shipped:'#e8f5fb',pending_admin_auth:'#fff8e1',rejected:'#fdecea',completed:'#e8f5e9'}[st]||'var(--surface2)';
+      const statusTxt={approved:'var(--green)',shipped:'#1565c0',pending_admin_auth:'#b8860b',rejected:'#c0392b',completed:'var(--green)'}[st]||'var(--muted)';
+      const statusLabel={approved:'✅ Approved — Seller Preparing',shipped:'🚚 Shipped — On the way!',pending_admin_auth:'⏳ Pending Payment Authorization',rejected:'❌ Payment Rejected',completed:'📦 Delivered'}[st]||st;
       const items=o.items||[];
+      const canReturn = o.status==='approved'||o.status==='completed'||o.status==='shipped';
       return `<div style="border:1.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;background:var(--surface);">
         <div style="padding:12px 14px;background:${statusBg};display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
           <div style="font-weight:700;font-size:.83rem;color:${statusTxt};">${statusLabel}</div>
           <div style="font-size:.74rem;color:var(--muted);">${new Date(o.submittedAt).toLocaleDateString()}</div>
         </div>
         <div style="padding:12px 14px;">
+          ${o.trackingNumber?`<div style="margin-bottom:8px;padding:8px 10px;background:#e8f5fb;border-radius:6px;font-size:.8rem;font-weight:600;color:#1565c0;">🚚 Tracking: ${o.trackingNumber} via ${o.courier||'Courier'}</div>`:''}
           ${items.map(i=>`<div style="display:flex;justify-content:space-between;font-size:.84rem;padding:5px 0;border-bottom:1px solid var(--border);">
             <span>${i.name||'Item'} ×${i.qty||1}</span>
             <span style="font-weight:600;">$${((i.price||0)*(i.qty||1)).toFixed(2)}</span>
@@ -3393,6 +3493,7 @@ function loadMyPurchases(){
             <span style="color:var(--accent);">$${(o.total||0).toFixed(2)}</span>
           </div>
           ${st==='rejected'&&o.rejectionReason?`<div style="margin-top:8px;padding:8px 10px;background:#fdecea;border-radius:6px;font-size:.78rem;color:#c0392b;">Reason: ${o.rejectionReason}</div>`:''}
+          ${canReturn?`<button onclick="openReturnModal('${o.key}',${o.total||0})" style="margin-top:10px;width:100%;padding:8px;background:#fff8e1;color:#b8860b;border:1.5px solid #fde68a;border-radius:7px;font-size:.81rem;font-weight:600;cursor:pointer;">↩️ Request Return / Refund</button>`:''}
         </div>
       </div>`;
     }).join('');
@@ -3409,6 +3510,8 @@ function checkAdminAccess(){
 function loadAdminPanel(){
   if(!user||user.email!==ADMIN_EMAIL){showView('home');showToast('⛔ Access denied');return;}
   document.getElementById('adminEmail').textContent=user.email;
+  loadAdminVerifications();
+  loadAdminReports();
   
   // Live stats counters
   db.ref('tradex_users').on('value', snap => {
@@ -3795,6 +3898,504 @@ function showToast(msg){
   setTimeout(()=>t.classList.add('show'),10);
   setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},3000);
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── REVIEWS & RATINGS ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+let reviewTarget = null;
+function openReviewModal(listingKey, listingName) {
+  if (!user) { openModal('authModal'); showToast('🔐 Sign in to leave a review'); return; }
+  reviewTarget = { key: listingKey, name: listingName };
+  document.getElementById('reviewListingName').textContent = listingName;
+  document.getElementById('reviewText').value = '';
+  document.getElementById('reviewErr').textContent = '';
+  selectReviewStar(0);
+  // Load existing reviews
+  loadReviews(listingKey);
+  openModal('reviewModal');
+}
+
+let selectedRating = 0;
+function selectReviewStar(n) {
+  selectedRating = n;
+  document.querySelectorAll('.rv-star').forEach((s,i) => {
+    s.style.color = i < n ? '#f0a500' : 'var(--border)';
+  });
+}
+
+async function submitReview() {
+  if (!reviewTarget) return;
+  if (!selectedRating) { document.getElementById('reviewErr').textContent = 'Please select a star rating.'; return; }
+  const text = document.getElementById('reviewText').value.trim();
+  if (!text) { document.getElementById('reviewErr').textContent = 'Please write a review.'; return; }
+  const btn = document.getElementById('reviewSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  const review = {
+    reviewerUid: user.uid, reviewerName: user.name,
+    rating: selectedRating, text, createdAt: new Date().toISOString()
+  };
+  await db.ref(`tradex_reviews/${reviewTarget.key}`).push(review);
+  // Recalculate avg
+  const allSnap = await db.ref(`tradex_reviews/${reviewTarget.key}`).once('value');
+  let total = 0, count = 0;
+  allSnap.forEach(c => { total += c.val().rating; count++; });
+  const avg = count ? +(total / count).toFixed(1) : 0;
+  await db.ref(`tradex_listings/${reviewTarget.key}`).update({ avgRating: avg, reviewCount: count });
+  showToast('⭐ Review submitted! Thank you.');
+  btn.disabled = false; btn.textContent = 'Submit Review';
+  closeModal('reviewModal');
+}
+
+function loadReviews(listingKey) {
+  const el = document.getElementById('reviewsList');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:.83rem;text-align:center;padding:10px;">Loading reviews...</div>';
+  db.ref(`tradex_reviews/${listingKey}`).orderByChild('createdAt').limitToLast(10).once('value').then(snap => {
+    if (!snap.exists()) { el.innerHTML = '<div style="color:var(--muted);font-size:.83rem;padding:8px 0;">No reviews yet. Be the first!</div>'; return; }
+    const reviews = [];
+    snap.forEach(c => reviews.push(c.val()));
+    reviews.reverse();
+    el.innerHTML = reviews.map(r => {
+      const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+      return `<div style="border-bottom:1px solid var(--border);padding:10px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <strong style="font-size:.84rem;">${r.reviewerName}</strong>
+          <span style="color:#f0a500;font-size:.85rem;">${stars}</span>
+        </div>
+        <div style="font-size:.82rem;color:var(--text);line-height:1.5;">${r.text}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${new Date(r.createdAt).toLocaleDateString()}</div>
+      </div>`;
+    }).join('');
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── REPORT LISTING ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+let reportTarget = null;
+function openReportModal(listingKey, listingName) {
+  if (!user) { openModal('authModal'); return; }
+  reportTarget = { key: listingKey, name: listingName };
+  document.getElementById('reportListingName').textContent = listingName;
+  document.getElementById('reportReason').value = '';
+  openModal('reportModal');
+}
+async function submitReport() {
+  if (!reportTarget) return;
+  const reason = document.getElementById('reportReason').value.trim();
+  if (!reason) { showToast('⚠️ Please describe the issue'); return; }
+  const btn = document.getElementById('reportSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Reporting...';
+  await db.ref(`tradex_reports/${reportTarget.key}`).push({
+    reporterUid: user.uid, reporterName: user.name,
+    reason, listingKey: reportTarget.key, listingName: reportTarget.name,
+    createdAt: new Date().toISOString(), status: 'open'
+  });
+  // Increment report count on listing
+  await db.ref(`tradex_listings/${reportTarget.key}`).transaction(l => {
+    if (!l) return l;
+    l.reportCount = (l.reportCount || 0) + 1;
+    return l;
+  });
+  // Alert admin
+  await db.ref('tradex_notifications/admin_alerts').push({
+    msg: `🚩 Listing "${reportTarget.name}" was reported: ${reason.slice(0,60)}`,
+    type: 'listing_report', at: new Date().toISOString(), read: false
+  });
+  btn.disabled = false; btn.textContent = 'Submit Report';
+  closeModal('reportModal');
+  showToast('🚩 Report submitted. Our team will review it.');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── DISCOUNT CODES ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+async function applyDiscountCode() {
+  const code = (document.getElementById('discountCodeInput')?.value || '').trim().toUpperCase();
+  const errEl = document.getElementById('discountErr');
+  if (!code) { if(errEl) errEl.textContent = 'Enter a code first.'; return; }
+  const snap = await db.ref('tradex_discount_codes').orderByChild('code').equalTo(code).once('value');
+  if (!snap.exists()) { if(errEl) errEl.textContent = '❌ Invalid code.'; return; }
+  let found = null;
+  snap.forEach(c => { found = { key: c.key, ...c.val() }; });
+  if (!found.active) { if(errEl) errEl.textContent = '❌ This code is no longer active.'; return; }
+  if (found.expiresAt && new Date(found.expiresAt) < new Date()) { if(errEl) errEl.textContent = '❌ This code has expired.'; return; }
+  if (found.usedCount >= (found.maxUses || 9999)) { if(errEl) errEl.textContent = '❌ This code has reached its usage limit.'; return; }
+  // Apply
+  window._appliedDiscount = found;
+  if(errEl) errEl.textContent = '';
+  showToast(`✅ Code "${code}" applied — ${found.type === 'pct' ? found.value + '% off' : '$' + found.value + ' off'}!`);
+  // Recalculate cart total display
+  recalcCartWithDiscount();
+}
+
+function recalcCartWithDiscount() {
+  const subtotal = cart.reduce((s, x) => s + x.price * x.qty, 0);
+  const d = window._appliedDiscount;
+  let discount = 0;
+  if (d) discount = d.type === 'pct' ? subtotal * (d.value / 100) : Math.min(d.value, subtotal);
+  const total = Math.max(0, subtotal - discount);
+  const discEl = document.getElementById('cartDiscountLine');
+  const totalEl = document.getElementById('cartTotalDisplay');
+  if (discEl) discEl.style.display = discount > 0 ? 'flex' : 'none';
+  const discAmt = document.getElementById('cartDiscountAmt');
+  if (discAmt) discAmt.textContent = '-$' + discount.toFixed(2);
+  if (totalEl) totalEl.textContent = '$' + total.toFixed(2);
+}
+
+function getCartTotal() {
+  const subtotal = cart.reduce((s, x) => s + x.price * x.qty, 0);
+  const d = window._appliedDiscount;
+  let discount = 0;
+  if (d) discount = d.type === 'pct' ? subtotal * (d.value / 100) : Math.min(d.value, subtotal);
+  return Math.max(0, subtotal - discount);
+}
+
+// Seller: manage discount codes
+function loadDiscountCodes() {
+  if (!user) return;
+  const storeUid = getStoreUid();
+  const el = document.getElementById('discountCodesList'); if (!el) return;
+  _listen('disc_codes', db.ref('tradex_discount_codes').orderByChild('sellerUid').equalTo(storeUid), snap => {
+    if (!snap.exists()) { el.innerHTML = '<div style="color:var(--muted);font-size:.84rem;padding:12px 0;text-align:center;">No codes yet.</div>'; return; }
+    const codes = [];
+    snap.forEach(c => codes.push({ key: c.key, ...c.val() }));
+    el.innerHTML = codes.map(c => `
+      <div style="border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-family:monospace;font-weight:700;font-size:.95rem;color:var(--accent);">${c.code}</div>
+          <div style="font-size:.78rem;color:var(--muted);">${c.type==='pct'?c.value+'% off':'$'+c.value+' off'} · Used ${c.usedCount||0}/${c.maxUses||'∞'} · ${c.active?'✅ Active':'⏸ Paused'}</div>
+          ${c.expiresAt?`<div style="font-size:.72rem;color:var(--muted);">Expires: ${new Date(c.expiresAt).toLocaleDateString()}</div>`:''}
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="toggleDiscountCode('${c.key}',${!c.active})" style="padding:5px 10px;border-radius:6px;border:1.5px solid var(--border);background:var(--surface2);font-size:.78rem;cursor:pointer;">${c.active?'Pause':'Activate'}</button>
+          <button onclick="deleteDiscountCode('${c.key}')" style="padding:5px 10px;border-radius:6px;border:1.5px solid #f5c6c6;background:#ffeaea;color:#c0392b;font-size:.78rem;cursor:pointer;">Delete</button>
+        </div>
+      </div>`).join('');
+  });
+}
+
+async function createDiscountCode() {
+  const code = (document.getElementById('newDiscCode')?.value||'').trim().toUpperCase();
+  const type = document.getElementById('newDiscType')?.value;
+  const val  = parseFloat(document.getElementById('newDiscVal')?.value||'0');
+  const max  = parseInt(document.getElementById('newDiscMax')?.value||'0')||9999;
+  const exp  = document.getElementById('newDiscExp')?.value;
+  if (!code) { showToast('⚠️ Enter a code'); return; }
+  if (!val || val <= 0) { showToast('⚠️ Enter a valid value'); return; }
+  const storeUid = getStoreUid();
+  await db.ref('tradex_discount_codes').push({
+    code, type, value: val, maxUses: max, usedCount: 0,
+    active: true, sellerUid: storeUid,
+    expiresAt: exp || null, createdAt: new Date().toISOString()
+  });
+  ['newDiscCode','newDiscVal','newDiscMax','newDiscExp'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
+  showToast('✅ Discount code created!');
+}
+
+async function toggleDiscountCode(key, active) {
+  await db.ref('tradex_discount_codes/' + key).update({ active });
+  showToast(active ? '✅ Code activated' : '⏸ Code paused');
+}
+async function deleteDiscountCode(key) {
+  if (!confirm('Delete this discount code?')) return;
+  await db.ref('tradex_discount_codes/' + key).remove();
+  showToast('🗑️ Code deleted');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── LOW STOCK ALERTS ─────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+function checkLowStockAlerts() {
+  if (!user) return;
+  const storeUid = getStoreUid();
+  db.ref('tradex_listings').orderByChild('sellerUid').equalTo(storeUid).once('value').then(snap => {
+    const lowItems = [];
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const l = c.val();
+        const threshold = l.lowStockThreshold || 3;
+        if (l.qty !== undefined && l.qty <= threshold && l.qty > 0 && l.status === 'active') {
+          lowItems.push({ key: c.key, title: l.title, qty: l.qty, threshold });
+        }
+        if (l.qty === 0) {
+          lowItems.push({ key: c.key, title: l.title, qty: 0, outOfStock: true });
+        }
+      });
+    }
+    const el = document.getElementById('lowStockAlerts'); if (!el) return;
+    if (!lowItems.length) { el.innerHTML = '<div style="color:var(--muted);font-size:.83rem;padding:8px 0;">✅ All listings have healthy stock levels.</div>'; return; }
+    el.innerHTML = lowItems.map(item => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;margin-bottom:6px;background:${item.outOfStock?'#fdecea':'#fff8e1'};border:1.5px solid ${item.outOfStock?'#f5c6c6':'#fde68a'};">
+        <div>
+          <div style="font-size:.84rem;font-weight:600;">${item.title}</div>
+          <div style="font-size:.76rem;color:${item.outOfStock?'#c0392b':'#b8860b'};">${item.outOfStock?'❌ Out of stock':'⚠️ Only '+item.qty+' remaining'}</div>
+        </div>
+        <button onclick="editListing('${item.key}')" style="padding:5px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;font-size:.75rem;cursor:pointer;">Restock</button>
+      </div>`).join('');
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── SHIPPING TRACKING ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+async function addTrackingNumber(orderKey, sellerName) {
+  const tracking = prompt('Enter tracking number for this shipment:');
+  if (!tracking) return;
+  const courier = prompt('Courier/shipping company (e.g. DHL, FedEx, UPS):') || 'Courier';
+  await db.ref('tradex_orders/' + orderKey).update({
+    trackingNumber: tracking, courier,
+    shippedAt: new Date().toISOString(), status: 'shipped'
+  });
+  // Notify buyer
+  const orderSnap = await db.ref('tradex_orders/' + orderKey).once('value');
+  const order = orderSnap.val();
+  if (order?.buyerUid) {
+    await db.ref('tradex_notifications/' + order.buyerUid).push({
+      msg: `📦 Your order has been shipped! Tracking: ${tracking} via ${courier}`,
+      type: 'order_shipped', at: new Date().toISOString(), read: false
+    });
+  }
+  showToast('📦 Tracking number added & buyer notified!');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── RETURNS & REFUNDS ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+let returnTarget = null;
+function openReturnModal(orderKey, orderTotal) {
+  if (!user) { openModal('authModal'); return; }
+  returnTarget = { orderKey, orderTotal };
+  document.getElementById('returnReason').value = '';
+  document.getElementById('returnOrderRef').textContent = orderKey.slice(-8).toUpperCase();
+  openModal('returnModal');
+}
+
+async function submitReturnRequest() {
+  if (!returnTarget) return;
+  const reason = document.getElementById('returnReason').value.trim();
+  if (!reason) { showToast('⚠️ Please describe the reason'); return; }
+  const btn = document.getElementById('returnSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  const req = {
+    buyerUid: user.uid, buyerName: user.name, buyerEmail: user.email,
+    orderKey: returnTarget.orderKey, orderTotal: returnTarget.orderTotal,
+    reason, status: 'pending', createdAt: new Date().toISOString()
+  };
+  await db.ref('tradex_returns').push(req);
+  await db.ref('tradex_notifications/admin_alerts').push({
+    msg: `↩️ Return request from ${user.name} for order #${returnTarget.orderKey.slice(-8).toUpperCase()} — $${returnTarget.orderTotal}`,
+    type: 'return_request', at: new Date().toISOString(), read: false
+  });
+  btn.disabled = false; btn.textContent = 'Submit Request';
+  closeModal('returnModal');
+  showToast('↩️ Return request submitted. We\'ll review within 48 hrs.');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── ANALYTICS CHARTS (Seller Overview) ───────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+function loadAnalyticsChart() {
+  if (!user) return;
+  const storeUid = getStoreUid();
+  const canvas = document.getElementById('revenueChart');
+  if (!canvas) return;
+  db.ref('tradex_orders').once('value').then(snap => {
+    const dayMap = {};
+    if (snap.exists()) {
+      snap.forEach(c => {
+        const o = c.val(); if (!o) return;
+        const myItems = (o.items||[]).filter(i => i.sellerUid === storeUid);
+        if (!myItems.length) return;
+        if (o.status !== 'approved' && o.status !== 'completed') return;
+        const day = o.submittedAt ? o.submittedAt.slice(0,10) : '';
+        if (!day) return;
+        const amt = myItems.reduce((s,i) => s + i.price * i.qty, 0);
+        dayMap[day] = (dayMap[day] || 0) + amt;
+      });
+    }
+    // Last 14 days
+    const days = [], values = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0,10);
+      days.push(key.slice(5)); // MM-DD
+      values.push(dayMap[key] || 0);
+    }
+    // Draw simple bar chart on canvas
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    const maxVal = Math.max(...values, 1);
+    const barW = Math.floor((W - 40) / days.length) - 4;
+    const darkMode = document.documentElement.getAttribute('data-theme') === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const barColor = '#e8440a';
+    const textColor = darkMode ? 'rgba(255,255,255,.5)' : 'rgba(0,0,0,.4)';
+    ctx.font = '10px DM Sans, sans-serif';
+    ctx.fillStyle = textColor;
+    days.forEach((label, i) => {
+      const x = 20 + i * (barW + 4);
+      const barH = Math.round(((H - 30) * values[i]) / maxVal);
+      const y = H - 20 - barH;
+      ctx.fillStyle = barColor;
+      ctx.beginPath();
+      ctx.roundRect(x, y, barW, barH, 3);
+      ctx.fill();
+      if (values[i] > 0) {
+        ctx.fillStyle = textColor;
+        ctx.fillText('$' + (values[i] >= 1000 ? (values[i]/1000).toFixed(1)+'k' : values[i].toFixed(0)), x, y - 3);
+      }
+      if (i % 3 === 0) {
+        ctx.fillStyle = textColor;
+        ctx.fillText(label, x, H - 4);
+      }
+    });
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── SELLER VERIFICATION ───────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+async function applyForVerification() {
+  if (!user) { openModal('authModal'); return; }
+  const bizName = document.getElementById('verifyBizName')?.value.trim();
+  const bizReg  = document.getElementById('verifyBizReg')?.value.trim();
+  const contact = document.getElementById('verifyContact')?.value.trim();
+  if (!bizName || !bizReg || !contact) { showToast('⚠️ Fill all fields'); return; }
+  const btn = document.getElementById('verifySubmitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  await db.ref(`tradex_verification_requests/${user.uid}`).set({
+    sellerUid: user.uid, sellerName: user.name, sellerEmail: user.email,
+    bizName, bizReg, contact,
+    status: 'pending', submittedAt: new Date().toISOString()
+  });
+  await db.ref('tradex_notifications/admin_alerts').push({
+    msg: `🔐 Verification request from ${user.name} (${user.email}) — "${bizName}"`,
+    type: 'verification_request', at: new Date().toISOString(), read: false
+  });
+  btn.disabled = false; btn.textContent = 'Submit Application';
+  closeModal('verifyModal');
+  showToast('✅ Verification application submitted! Admin will review within 48 hrs.');
+}
+
+// Admin: approve verification
+async function adminApproveVerification(sellerUid, reqKey) {
+  await db.ref(`tradex_users/${sellerUid}`).update({ verified: true });
+  // Mark all their listings as verified
+  const snap = await db.ref('tradex_listings').orderByChild('sellerUid').equalTo(sellerUid).once('value');
+  const updates = {};
+  snap.forEach(c => { updates[c.key + '/sellerVerified'] = true; });
+  if (Object.keys(updates).length) await db.ref('tradex_listings').update(updates);
+  await db.ref(`tradex_verification_requests/${sellerUid}`).update({ status: 'approved', approvedAt: new Date().toISOString() });
+  await db.ref('tradex_notifications/' + sellerUid).push({
+    msg: '✅ Your seller account has been verified! A verified badge now appears on all your listings.',
+    type: 'verified', at: new Date().toISOString(), read: false
+  });
+  showToast('✅ Seller verified!');
+  loadAdminVerifications();
+}
+
+function loadAdminVerifications() {
+  const el = document.getElementById('adminVerifyList'); if (!el) return;
+  db.ref('tradex_verification_requests').orderByChild('status').equalTo('pending').once('value').then(snap => {
+    if (!snap.exists()) { el.innerHTML = '<div style="color:rgba(255,255,255,.4);text-align:center;padding:20px;font-size:.85rem;">No pending verification requests.</div>'; return; }
+    const reqs = [];
+    snap.forEach(c => reqs.push({ key: c.key, ...c.val() }));
+    el.innerHTML = reqs.map(r => `
+      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="font-weight:700;color:#fff;margin-bottom:4px;">${r.sellerName} <span style="font-size:.75rem;font-weight:400;opacity:.6;">${r.sellerEmail}</span></div>
+        <div style="font-size:.82rem;color:rgba(255,255,255,.65);margin-bottom:8px;">🏢 ${r.bizName} · Reg: ${r.bizReg} · 📞 ${r.contact}</div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:10px;">Submitted: ${new Date(r.submittedAt).toLocaleString()}</div>
+        <button onclick="adminApproveVerification('${r.sellerUid}','${r.key}')" style="padding:7px 16px;background:#4ade80;color:#000;border:none;border-radius:6px;font-size:.8rem;font-weight:700;cursor:pointer;margin-right:8px;">✅ Approve</button>
+        <button onclick="adminRejectVerification('${r.sellerUid}')" style="padding:7px 16px;background:#f87171;color:#000;border:none;border-radius:6px;font-size:.8rem;font-weight:700;cursor:pointer;">❌ Reject</button>
+      </div>`).join('');
+  });
+}
+async function adminRejectVerification(sellerUid) {
+  await db.ref(`tradex_verification_requests/${sellerUid}`).update({ status: 'rejected', rejectedAt: new Date().toISOString() });
+  await db.ref('tradex_notifications/' + sellerUid).push({
+    msg: '❌ Your verification application was not approved. Contact support for more info.',
+    type: 'verify_rejected', at: new Date().toISOString(), read: false
+  });
+  showToast('❌ Verification rejected');
+  loadAdminVerifications();
+}
+
+// Admin: view reports
+function loadAdminReports() {
+  const el = document.getElementById('adminReportsList'); if (!el) return;
+  db.ref('tradex_reports').once('value').then(snap => {
+    if (!snap.exists()) { el.innerHTML = '<div style="color:rgba(255,255,255,.4);text-align:center;padding:20px;font-size:.85rem;">No reports yet.</div>'; return; }
+    const all = [];
+    snap.forEach(listingNode => { listingNode.forEach(c => all.push({ key: c.key, listingKey: listingNode.key, ...c.val() })); });
+    all.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+    el.innerHTML = all.slice(0,30).map(r => `
+      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px;margin-bottom:8px;">
+        <div style="font-weight:600;color:#f87171;font-size:.84rem;">🚩 ${r.listingName||'Unknown Listing'}</div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.65);margin:4px 0;">"${r.reason}"</div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.4);">By ${r.reporterName} · ${new Date(r.createdAt).toLocaleString()}</div>
+        <button onclick="adminRemoveListing('${r.listingKey}')" style="margin-top:8px;padding:5px 12px;background:#f87171;color:#000;border:none;border-radius:5px;font-size:.75rem;font-weight:700;cursor:pointer;">🗑️ Remove Listing</button>
+      </div>`).join('');
+  });
+}
+async function adminRemoveListing(listingKey) {
+  if (!confirm('Remove this listing? This cannot be undone.')) return;
+  await db.ref('tradex_listings/' + listingKey).update({ status: 'removed' });
+  showToast('🗑️ Listing removed');
+  loadAdminReports();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── LISTING BOOST (FEATURED) ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+async function boostListing(listingKey, title) {
+  if (!confirm(`Feature "${title}"? This will highlight it at the top of listings.`)) return;
+  await db.ref('tradex_listings/' + listingKey).update({ featured: true, featuredAt: new Date().toISOString() });
+  showToast('⭐ Listing boosted to Featured!');
+}
+async function unboostListing(listingKey) {
+  await db.ref('tradex_listings/' + listingKey).update({ featured: false });
+  showToast('Listing removed from featured');
+}
+
+// Admin: toggle featured from admin panel
+async function adminToggleFeatured(listingKey, currentState) {
+  await db.ref('tradex_listings/' + listingKey).update({ featured: !currentState });
+  showToast(!currentState ? '⭐ Marked as featured' : 'Removed from featured');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── ROLE ACTIVITY LOG ─────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+function logRoleActivity(action, detail) {
+  if (!user || !activeTeamStore) return;
+  const storeUid = activeTeamStore.sellerUid || user.uid;
+  db.ref(`tradex_activity_log/${storeUid}`).push({
+    agentUid: user.uid, agentName: user.name,
+    role: activeTeamStore.role || 'owner',
+    action, detail, at: new Date().toISOString()
+  });
+}
+
+function loadActivityLog() {
+  const storeUid = getStoreUid();
+  const el = document.getElementById('activityLogList'); if (!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:.83rem;padding:10px 0;">Loading activity...</div>';
+  db.ref(`tradex_activity_log/${storeUid}`).orderByChild('at').limitToLast(30).once('value').then(snap => {
+    if (!snap.exists()) { el.innerHTML = '<div style="color:var(--muted);font-size:.83rem;padding:10px 0;">No activity recorded yet.</div>'; return; }
+    const logs = [];
+    snap.forEach(c => logs.push(c.val()));
+    logs.reverse();
+    el.innerHTML = logs.map(l => `
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.8rem;flex-shrink:0;">${(l.agentName||'?')[0].toUpperCase()}</div>
+        <div>
+          <div style="font-size:.83rem;"><strong>${l.agentName}</strong> <span style="color:var(--muted);">(${l.role})</span> — ${l.action}</div>
+          <div style="font-size:.77rem;color:var(--muted);">${l.detail||''} · ${formatTimeAgo(l.at)}</div>
+        </div>
+      </div>`).join('');
+  });
+}
 </script>
 <!-- EDIT LISTING MODAL -->
 <div class="modal-overlay" id="editListingModal">
@@ -3832,5 +4433,87 @@ function showToast(msg){
   </div>
 </div>
 
+
+<!-- ── REVIEW MODAL ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal" style="max-width:480px;">
+    <button class="mc" onclick="closeModal('reviewModal')">✕</button>
+    <h2>⭐ Rate & Review</h2>
+    <p id="reviewListingName" style="font-weight:600;color:var(--accent);"></p>
+    <div style="display:flex;gap:6px;margin:14px 0;justify-content:center;">
+      <span class="rv-star" onclick="selectReviewStar(1)" style="font-size:2rem;cursor:pointer;color:var(--border);">★</span>
+      <span class="rv-star" onclick="selectReviewStar(2)" style="font-size:2rem;cursor:pointer;color:var(--border);">★</span>
+      <span class="rv-star" onclick="selectReviewStar(3)" style="font-size:2rem;cursor:pointer;color:var(--border);">★</span>
+      <span class="rv-star" onclick="selectReviewStar(4)" style="font-size:2rem;cursor:pointer;color:var(--border);">★</span>
+      <span class="rv-star" onclick="selectReviewStar(5)" style="font-size:2rem;cursor:pointer;color:var(--border);">★</span>
+    </div>
+    <div class="fg"><label>Your Review</label><textarea id="reviewText" placeholder="Share your experience with this product..." style="min-height:80px;"></textarea></div>
+    <div id="reviewErr" style="color:#c0392b;font-size:.82rem;margin-bottom:8px;"></div>
+    <button class="bp" id="reviewSubmitBtn" onclick="submitReview()">Submit Review</button>
+    <div style="margin-top:18px;border-top:1.5px solid var(--border);padding-top:14px;">
+      <div style="font-weight:600;font-size:.88rem;margin-bottom:10px;">Recent Reviews</div>
+      <div id="reviewsList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── REPORT MODAL ───────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="reportModal">
+  <div class="modal" style="max-width:440px;">
+    <button class="mc" onclick="closeModal('reportModal')">✕</button>
+    <h2>🚩 Report Listing</h2>
+    <p>Reporting: <strong id="reportListingName"></strong></p>
+    <div class="fg">
+      <label>Why are you reporting this listing?</label>
+      <select id="reportReason">
+        <option value="">Select a reason...</option>
+        <option>Fake or misleading product</option>
+        <option>Prohibited item</option>
+        <option>Spam or duplicate listing</option>
+        <option>Scam / fraud</option>
+        <option>Wrong category</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="fg"><label>Additional details (optional)</label><textarea id="reportDetails" placeholder="Any extra context..." style="min-height:70px;"></textarea></div>
+    <button class="bp" id="reportSubmitBtn" onclick="submitReport()">Submit Report</button>
+  </div>
+</div>
+
+<!-- ── RETURN / REFUND MODAL ──────────────────────────────────────────────── -->
+<div class="modal-overlay" id="returnModal">
+  <div class="modal" style="max-width:440px;">
+    <button class="mc" onclick="closeModal('returnModal')">✕</button>
+    <h2>↩️ Request Return / Refund</h2>
+    <p>Order ref: <strong id="returnOrderRef"></strong></p>
+    <div class="fg">
+      <label>Reason for return</label>
+      <select id="returnReason">
+        <option value="">Select a reason...</option>
+        <option>Item not as described</option>
+        <option>Damaged or defective</option>
+        <option>Wrong item received</option>
+        <option>Changed my mind</option>
+        <option>Item never arrived</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="fg"><label>Additional details</label><textarea id="returnDetails" placeholder="Describe the issue..." style="min-height:70px;"></textarea></div>
+    <button class="bp" id="returnSubmitBtn" onclick="submitReturnRequest()">Submit Request</button>
+  </div>
+</div>
+
+<!-- ── SELLER VERIFICATION MODAL ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="verifyModal">
+  <div class="modal" style="max-width:440px;">
+    <button class="mc" onclick="closeModal('verifyModal')">✕</button>
+    <h2>🔐 Apply for Verified Badge</h2>
+    <p>Get a ✓ Verified badge on all your listings. We'll review your application within 48 hrs.</p>
+    <div class="fg"><label>Business / Store Name</label><input type="text" id="verifyBizName" placeholder="Your business name"></div>
+    <div class="fg"><label>Business Registration / ID Number</label><input type="text" id="verifyBizReg" placeholder="e.g. RC1234567"></div>
+    <div class="fg"><label>Contact Number</label><input type="tel" id="verifyContact" placeholder="+1 555 000 0000"></div>
+    <button class="bp" id="verifySubmitBtn" onclick="applyForVerification()">Submit Application</button>
+  </div>
+</div>
 </body>
 </html>
